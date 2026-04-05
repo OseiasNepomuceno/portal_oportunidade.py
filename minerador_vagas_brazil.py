@@ -2,149 +2,69 @@ import pandas as pd
 import requests
 import os
 import json
+import gspread
 from datetime import datetime, timedelta
-from streamlit_gsheets import GSheetsConnection
-import streamlit as st
+from oauth2client.service_account import ServiceAccountCredentials
 
-# --- FUNÇÃO HÍBRIDA PARA PEGAR AS CHAVES ---
-def obter_chave(nome_da_chave):
-    valor = os.environ.get(nome_da_chave)
-    if valor:
-        return valor
-    try:
-        return st.secrets[nome_da_chave]
-    except:
-        return None
+def obter_chave(nome):
+    return os.environ.get(nome)
 
-# --- CONFIGURAÇÕES ---
-DIAS_LIMITES = 30
-
-def conectar_gsheets():
-    """Cria o arquivo de segredos fisicamente via Python para garantir compatibilidade no GitHub"""
-    url_planilha = os.environ.get("STREAMLIT_CONNECTIONS_GSHEETS_SPREADSHEET")
-    service_account_info = os.environ.get("STREAMLIT_CONNECTIONS_GSHEETS_SERVICE_ACCOUNT")
+def conectar_google_direto():
+    """Conecta na planilha usando a biblioteca oficial, sem passar pelo Streamlit"""
+    scope = ['https://www.googleapis.com/auth/spreadsheets', "https://www.googleapis.com/auth/drive"]
+    js_creds = json.loads(obter_chave("GCP_SERVICE_ACCOUNT"))
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(js_creds, scope)
+    client = gspread.authorize(creds)
     
-    dot_streamlit_path = ".streamlit"
-    secrets_path = os.path.join(dot_streamlit_path, "secrets.toml")
+    # Abre a planilha pela URL
+    return client.open_by_url(obter_chave("GSHEETS_URL")).get_worksheet(0)
 
-    try:
-        # 1. Garante que a pasta existe
-        if not os.path.exists(dot_streamlit_path):
-            os.makedirs(dot_streamlit_path)
-
-        # 2. Cria o arquivo secrets.toml formatado corretamente
-        # Usamos aspas simples para o service_account para proteger o JSON interno
-        with open(secrets_path, "w", encoding="utf-8") as f:
-            f.write("[connections.gsheets]\n")
-            f.write(f'spreadsheet = "{url_planilha}"\n')
-            if service_account_info:
-                f.write(f"service_account = '{service_account_info}'\n")
-
-        # 3. Agora o Streamlit encontrará o arquivo e terá permissão de escrita
-        return st.connection("gsheets", type=GSheetsConnection)
-    except Exception as e:
-        print(f"Erro na conexão com Google Sheets: {e}")
-        return None
-
-def carregar_dados_existentes():
-    conn = conectar_gsheets()
-    if conn:
-        try:
-            return conn.read(ttl=0).dropna(how="all")
-        except:
-            return pd.DataFrame()
-    return pd.DataFrame()
-
-def minerar_vagas_novas():
-    vagas_novas = []
+def minerar_vagas():
+    vagas = []
     hoje = datetime.now().strftime("%Y-%m-%d")
-
-    aid = obter_chave("APP_ID")
-    akey = obter_chave("APP_KEY")
+    aid, akey = obter_chave("APP_ID"), obter_chave("APP_KEY")
     serp_key = obter_chave("SERPAPI_KEY")
 
-    # 1. CAPTURA ADZUNA
+    # Adzuna
     if aid and akey:
         try:
             url = f"https://api.adzuna.com/v1/api/jobs/br/search/1?app_id={aid}&app_key={akey}&results_per_page=50&what=industria%20tecnologia"
             res = requests.get(url).json()
             for item in res.get('results', []):
-                vagas_novas.append({
-                    "Título": item.get('title'),
-                    "Empresa": item.get('company', {}).get('display_name', 'Confidencial'),
-                    "Cidade": item.get('location', {}).get('display_name', 'Brasil'),
-                    "UF": "BR",
-                    "Tipo": "Remoto" if "remoto" in item.get('description', '').lower() else "Presencial",
-                    "Salário": item.get('salary_min', 0),
-                    "Fonte": "Adzuna",
-                    "Área": "Geral",
-                    "Link_Inscrição": item.get('redirect_url'),
-                    "Status": "Ativa",
-                    "Data_Captura": hoye if 'hoye' not in locals() else hoje # Pequeno ajuste de segurança
-                })
-        except Exception as e: print(f"Erro Adzuna: {e}")
+                vagas.append([
+                    item.get('title'), item.get('company', {}).get('display_name'),
+                    item.get('location', {}).get('display_name'), "BR",
+                    "Remoto" if "remoto" in item.get('description', '').lower() else "Presencial",
+                    item.get('salary_min', 0), "Adzuna", item.get('redirect_url'), hoje
+                ])
+        except: pass
 
-    # 2. CAPTURA GOOGLE JOBS
+    # Google Jobs (SerpApi)
     if serp_key:
         try:
-            url_serp = f"https://serpapi.com/search.json?engine=google_jobs&q=vagas+industria+brasil&hl=pt&gl=br&api_key={serp_key}"
-            res_serp = requests.get(url_serp).json()
-            for item in res_serp.get('jobs_results', []):
-                vagas_novas.append({
-                    "Título": item.get('title'),
-                    "Empresa": item.get('company_name'),
-                    "Cidade": item.get('location', 'Brasil'),
-                    "UF": "BR",
-                    "Tipo": "Ver na Fonte",
-                    "Salário": 0,
-                    "Fonte": "Google",
-                    "Área": "Geral",
-                    "Link_Inscrição": item.get('share_link'),
-                    "Status": "Ativa",
-                    "Data_Captura": hoje
-                })
-        except Exception as e: print(f"Erro Google Jobs: {e}")
+            url = f"https://serpapi.com/search.json?engine=google_jobs&q=vagas+industria+brasil&hl=pt&gl=br&api_key={serp_key}"
+            res = requests.get(url).json()
+            for item in res.get('jobs_results', []):
+                vagas.append([
+                    item.get('title'), item.get('company_name'), item.get('location'), "BR",
+                    "Ver na Fonte", 0, "Google", item.get('share_link'), hoje
+                ])
+        except: pass
+    return vagas
 
-    return pd.DataFrame(vagas_novas)
-
-def atualizar_planilha():
-    df_antigo = carregar_dados_existentes()
-    df_novas = minerar_vagas_novas()
-    
-    if df_novas.empty and df_antigo.empty:
-        print("⚠️ Nenhuma vaga encontrada.")
-        return
-
-    # Unir e remover duplicatas
-    if not df_antigo.empty:
-        df_total = pd.concat([df_antigo, df_novas]).drop_duplicates(subset=['Link_Inscrição'], keep='first')
-    else:
-        df_total = df_novas
-
-    # Limpeza e Organização
-    df_total['Data_Captura'] = pd.to_datetime(df_total['Data_Captura'])
-    df_total = df_total.sort_values(by='Data_Captura', ascending=False)
-    
-    data_corte = datetime.now() - timedelta(days=DIAS_LIMITES)
-    df_total = df_total[df_total['Data_Captura'] >= data_corte]
-    
-    df_total['Data_Captura'] = df_total['Data_Captura'].dt.strftime("%Y-%m-%d")
-    
-    # Recriar ID sequencial
-    df_total = df_total.reset_index(drop=True)
-    df_total['ID'] = range(1, len(df_total) + 1)
-
-    colunas = ["ID", "Título", "Empresa", "Cidade", "UF", "Tipo", "Salário", "Fonte", "Área", "Link_Inscrição", "Status", "Data_Captura"]
-    df_total = df_total[colunas]
-
-    # SALVAR
-    conn = conectar_gsheets()
-    if conn:
-        try:
-            conn.update(data=df_total)
-            print(f"✅ Sucesso! Planilha atualizada com {len(df_total)} vagas.")
-        except Exception as e:
-            print(f"❌ Erro ao salvar no Google Sheets: {e}")
+def executar():
+    try:
+        sheet = conectar_google_direto()
+        novas_vagas = minerar_vagas()
+        
+        if novas_vagas:
+            # Adiciona as novas vagas no final da planilha
+            sheet.append_rows(novas_vagas)
+            print(f"✅ {len(novas_vagas)} vagas adicionadas com sucesso!")
+        else:
+            print("⚠️ Nenhuma vaga nova encontrada.")
+    except Exception as e:
+        print(f"❌ Erro: {e}")
 
 if __name__ == "__main__":
-    atualizar_planilha()
+    executar()
