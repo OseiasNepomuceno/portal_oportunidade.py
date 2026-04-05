@@ -19,26 +19,34 @@ def minerar_e_salvar():
         sheet = client.open_by_key(spreadsheet_id).sheet1
         print("✅ Conexão com a planilha estabelecida!")
 
-        # 2. Busca de Dados
+       # 2. Busca de Dados
+        # Nova URL da API (ajustada para o padrão atual)
         url = "https://sesisenaisp.empregare.com/api/v1/vacancies/search"
         
-        # O "disfarce" para o site não bloquear o robô
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Origin": "https://sesisenaisp.empregare.com",
+            "Referer": "https://sesisenaisp.empregare.com/pt-br/vagas"
         }
         
         print("🛰️ Acessando API do SESI/SENAI...")
         
+        # Testando com a URL de busca pública caso a API direta dê 404
         response = requests.get(url, params={"page": 1, "limit": 10}, headers=headers)
         
-        # Verifica se o site respondeu com sucesso antes de tentar ler
         if response.status_code != 200:
-            print(f"⚠️ O site do SESI retornou erro {response.status_code}")
+            print(f"⚠️ Erro {response.status_code}. Tentando URL alternativa...")
+            # Tentativa 2: URL de fallback
+            url = "https://sesisenaisp.empregare.com/api/v1/vacancies"
+            response = requests.get(url, params={"page": 1, "limit": 10}, headers=headers)
+
+        if response.status_code != 200:
+            print(f"❌ Não foi possível acessar o site (Erro {response.status_code})")
             return
 
         vagas = response.json().get('data', [])
         print(f"📦 {len(vagas)} vagas encontradas no site.")
-
         
         # 3. Envio para Planilha
         for vaga in vagas:
