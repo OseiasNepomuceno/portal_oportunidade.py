@@ -19,42 +19,40 @@ def minerar_e_salvar():
         sheet = client.open_by_key(spreadsheet_id).sheet1
         print("✅ Conexão com a planilha estabelecida!")
 
-      # 2. Busca de Dados
-        # Esta é a URL exata que o sistema Empregare usa para o SESI SP
-        url = "https://sesisenaisp.empregare.com/api/v1/vacancies/search"
+     # 2. Busca de Dados
+        # URL da listagem pública (mais estável contra 404)
+        url = "https://sesisenaisp.empregare.com/api/v1/vacancies"
         
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "pt-BR,pt;q=0.9",
-            "Origin": "https://sesisenaisp.empregare.com",
+            "Accept": "application/json",
             "Referer": "https://sesisenaisp.empregare.com/pt-br/vagas"
         }
         
-        # Parâmetros que o site envia para trazer as vagas recentes
+        # Parâmetros simplificados
         params = {
-            "page": 1,
             "limit": 20,
-            "sorting": "newest",
-            "is_active": "true"
+            "order_by": "id",
+            "order_direction": "desc"
         }
         
-        print("🛰️ Acessando portal de vagas SESI/SENAI...")
+        print(f"🛰️ Tentando conexão com: {url}")
         response = requests.get(url, params=params, headers=headers)
         
         if response.status_code != 200:
-            print(f"❌ Erro de acesso: {response.status_code}. O site pode estar em manutenção.")
+            print(f"⚠️ Erro {response.status_code}. Tentando última alternativa (v3)...")
+            url = "https://sesisenaisp.empregare.com/api/v3/vacancies"
+            response = requests.get(url, params=params, headers=headers)
+
+        if response.status_code != 200:
+            print(f"❌ O portal bloqueou a conexão (Erro {response.status_code}).")
             return
 
-        # Tentando ler os dados com segurança
-        dados_json = response.json()
-        vagas = dados_json.get('data', [])
+        dados = response.json()
+        # O Empregare costuma colocar os dados em 'data' ou direto na raiz
+        vagas = dados.get('data', dados) if isinstance(dados, dict) else dados
         
-        if not vagas:
-            print("⚠️ Nenhuma vaga encontrada no momento.")
-            return
-
-        print(f"📦 {len(vagas)} vagas encontradas! Enviando para a planilha...")
+        print(f"📦 {len(vagas)} vagas encontradas!")
         
         # 3. Envio para Planilha
         for vaga in vagas:
