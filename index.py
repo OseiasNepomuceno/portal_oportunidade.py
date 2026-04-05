@@ -189,4 +189,15 @@ def main():
                 <div class="titulo-vaga">{vaga['titulo']}</div>
                 <div class="empresa-vaga">🏢 {vaga['empresa']}</div>
                 <div>
-                    <span class="tag tag-local">📍 {vaga['cidade']}
+                    <span class="tag tag-local">📍 {vaga['cidade']} - {vaga['uf']}</span>
+                    <span class="tag tag-tipo">💻 {vaga['tipo']}</span>
+                    <span class="tag tag-fonte">🔗 Fonte: {vaga['fonte']}</span>
+                </div>
+                <div class="valor-vaga">💰 {texto_salario}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        st.link_button(f"🚀 Ver detalhes na {vaga['fonte']}", vaga['link'], key=f"btn_{i}")
+        st.write("")
+
+if __name__ == "__main__":
+    main()
