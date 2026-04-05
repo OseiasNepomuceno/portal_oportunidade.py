@@ -1,0 +1,27 @@
+name: Atualizar Vagas SESI
+
+on:
+  schedule:
+    - cron: '0 11 * * *' # Roda todo dia às 08:00 (Horário de Brasília)
+  workflow_dispatch: # Permite que você rode manualmente pelo botão no GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar bibliotecas
+        run: pip install -r requirements.txt
+
+      - name: Criar arquivo de credenciais
+        run: echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+
+      - name: Executar Minerador
+        run: python minerador_sesi.py
