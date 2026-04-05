@@ -22,23 +22,15 @@ jobs:
           pip install --upgrade pip
           pip install pandas requests st-gsheets-connection streamlit
 
-      # --- SOLUÇÃO BLINDADA: CRIA O SECRETS SEM CONFLITO DE ASPAS ---
-      - name: Criar Streamlit Secrets
-        env:
-          GCP_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          GSHEET_URL: ${{ secrets.GSHEETS_URL }}
-        run: |
-          mkdir -p .streamlit
-          echo "[connections.gsheets]" > .streamlit/secrets.toml
-          echo "spreadsheet = \"$GSHEET_URL\"" >> .streamlit/secrets.toml
-          echo -n "service_account = " >> .streamlit/secrets.toml
-          echo "$GCP_JSON" >> .streamlit/secrets.toml
-
       - name: Rodar Minerador
         env:
+          # Chaves das APIs de busca
           APP_ID: ${{ secrets.APP_ID }}
           APP_KEY: ${{ secrets.APP_KEY }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
-          GSHEETS_URL: ${{ secrets.GSHEETS_URL }}
-          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          
+          # PADRÃO NATIVO DO STREAMLIT (Auto-Discovery)
+          # O Streamlit lê essas variáveis e configura a conexão "gsheets" sozinho
+          STREAMLIT_CONNECTIONS_GSHEETS_SPREADSHEET: ${{ secrets.GSHEETS_URL }}
+          STREAMLIT_CONNECTIONS_GSHEETS_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
         run: python minerador_vagas_brazil.py
