@@ -24,12 +24,12 @@ jobs:
 
       - name: Rodar Minerador
         env:
-          # Chaves das APIs
+          # Chaves das APIs (Adzuna e SerpApi)
           APP_ID: ${{ secrets.APP_ID }}
           APP_KEY: ${{ secrets.APP_KEY }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
           
-          # Variáveis para a Injeção Manual no Python
+          # Variáveis de ambiente que o script Python usará para criar o secrets.toml
           STREAMLIT_CONNECTIONS_GSHEETS_SPREADSHEET: ${{ secrets.GSHEETS_URL }}
           STREAMLIT_CONNECTIONS_GSHEETS_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
         run: python minerador_vagas_brazil.py
