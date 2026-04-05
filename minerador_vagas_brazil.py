@@ -20,27 +20,25 @@ def obter_chave(nome_da_chave):
 DIAS_LIMITES = 30
 
 def conectar_gsheets():
-    """Conexão Robusta: Lê a URL do segredo e o JSON da conta de serviço direto do ambiente"""
+    """Conexão Universal: Usa kwargs para evitar erros de versão da biblioteca"""
     url_planilha = obter_chave("GSHEETS_URL")
     service_account_info = os.environ.get("GCP_SERVICE_ACCOUNT")
     
     try:
+        # Criamos o dicionário de configuração que a biblioteca espera internamente
+        conf = {}
+        if url_planilha:
+            conf["spreadsheet"] = url_planilha
+        
         if service_account_info:
-            # Transforma o texto do JSON em um dicionário Python real
-            credentials_dict = json.loads(service_account_info)
-            
-            # Conecta passando os parâmetros DIRETAMENTE, sem depender do secrets.toml
-            return st.connection("gsheets", 
-                                 type=GSheetsConnection, 
-                                 url=url_planilha, 
-                                 service_account=credentials_dict)
-        else:
-            # Caso rode localmente com arquivo secrets.toml
-            return st.connection("gsheets", type=GSheetsConnection)
+            conf["service_account"] = json.loads(service_account_info)
+
+        # Passamos a configuração desempacotada com **
+        return st.connection("gsheets", type=GSheetsConnection, **conf)
+        
     except Exception as e:
         print(f"Erro na conexão com Google Sheets: {e}")
         return None
-
 def carregar_dados_existentes():
     conn = conectar_gsheets()
     if conn:
