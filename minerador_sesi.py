@@ -1,48 +1,59 @@
 import requests
 import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import os
 
-def minerar_sesi_senai():
-    # URL da API interna da Empregare (SESI/SENAI SP)
-    url = "https://sesisenaisp.empregare.com/api/v1/vacancies/search"
+def conectar_planilha():
+    # Escopos para Google Sheets e Drive
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     
-    # Parâmetros de busca (podemos ajustar para pegar mais páginas)
-    params = {
-        "page": 1,
-        "limit": 50,
-        "sorting": "newest"
-    }
+    # O arquivo credentials.json é criado pelo GitHub Actions usando o seu SECRET
+    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    client = gspread.authorize(creds)
+    
+    # --- INSIRA O ID DA SUA PLANILHA ABAIXO ---
+    spreadsheet_id = "COLOQUE_AQUI_O_ID_DA_SUA_PLANILHA" 
+    
+    # Abre a primeira aba da planilha
+    return client.open_by_key(spreadsheet_id).sheet1
 
-    print("🛰️ Iniciando mineração no SESI SENAI SP...")
+def minerar_e_salvar():
+    url = "https://sesisenaisp.empregare.com/api/v1/vacancies/search"
+    params = {"page": 1, "limit": 20, "sorting": "newest"}
+
+    print("🛰️ Iniciando mineração automática no SESI SENAI SP...")
     
     try:
+        # 1. PEGA OS DADOS DO SESI
         response = requests.get(url, params=params)
-        data = response.json()
-        vagas_brutas = data.get('data', [])
+        vagas_brutas = response.json().get('data', [])
         
-        lista_vagas = []
+        # 2. CONECTA NA PLANILHA
+        sheet = conectar_planilha()
+        print(f"✅ Conectado à planilha. Enviando {len(vagas_brutas)} vagas...")
+
+        # 3. ENVIA LINHA POR LINHA
         for vaga in vagas_brutas:
-            lista_vagas.append({
-                "Título": vaga.get('title'),
-                "Empresa": "SESI/SENAI SP",
-                "Cidade": vaga.get('city', {}).get('name', 'São Paulo'),
-                "UF": "SP",
-                "Tipo": "Presencial", # Padronização SESI
-                "Salário": 0, # Geralmente a combinar
-                "Área": vaga.get('area', {}).get('name', 'Educação/Indústria'),
-                "Link_Inscrição": f"https://sesisenaisp.empregare.com/pt-br/vaga/{vaga.get('id')}",
-                "Status": "Ativa"
-            })
+            nova_linha = [
+                vaga.get('id'),                      # Coluna ID
+                vaga.get('title'),                   # Coluna Título
+                "SESI/SENAI SP",                     # Coluna Empresa
+                vaga.get('city', {}).get('name'),    # Coluna Cidade
+                "SP",                                # Coluna UF
+                "Presencial",                        # Coluna Tipo
+                "A combinar",                        # Coluna Salário
+                vaga.get('area', {}).get('name'),    # Coluna Área
+                f"https://sesisenaisp.empregare.com/pt-br/vaga/{vaga.get('id')}", # Link
+                "Ativa"                              # Coluna Status
+            ]
+            # Adiciona a linha no final da planilha
+            sheet.append_row(nova_linha)
             
-        df = pd.DataFrame(lista_vagas)
-        print(f"✅ Sucesso! {len(df)} vagas encontradas.")
-        return df
+        print("🚀 Sucesso! As vagas já devem estar na sua Planilha Google.")
 
     except Exception as e:
-        print(f"❌ Erro na mineração: {e}")
-        return pd.DataFrame()
+        print(f"❌ Erro no processo: {e}")
 
-# Executar e salvar para você copiar para a planilha
-df_sesi = minerar_sesi_senai()
-if not df_sesi.empty:
-    df_sesi.to_csv("vagas_sesi_senai.csv", index=False, encoding='utf-8-sig')
-    print("📂 Arquivo 'vagas_sesi_senai.csv' gerado. Agora é só copiar para sua Planilha Google!")
+if __name__ == "__main__":
+    minerar_e_salvar()
