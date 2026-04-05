@@ -60,7 +60,7 @@ def carregar_vagas_integradas():
                 "link": str(row.get('link', '#'))
             })
     except Exception as e:
-        st.sidebar.error(f"Erro Planilha: {e}")
+        st.sidebar.error(f"⚠️ Erro Planilha: {e}")
 
     # 2. ADZUNA API
     try:
@@ -68,20 +68,23 @@ def carregar_vagas_integradas():
         akey = st.secrets["ADZUNA_KEY"]
         url_adz = f"https://api.adzuna.com/v1/api/jobs/br/search/1?app_id={aid}&app_key={akey}&results_per_page=10&what=administrativo"
         res_adz = requests.get(url_adz).json()
-        for item in res_adz.get('results', []):
-            lista_final.append({
-                "titulo": item.get('title'),
-                "empresa": item.get('company', {}).get('display_name', 'Confidencial'),
-                "cidade": item.get('location', {}).get('display_name', 'Remoto'),
-                "uf": "BR",
-                "tipo": "Remoto" if "remoto" in item.get('description', '').lower() else "Presencial",
-                "salario": item.get('salary_min', 0),
-                "nivel": "Pleno",
-                "fonte": "Adzuna",
-                "link": item.get('redirect_url')
-            })
-    except:
-        pass
+        if 'results' in res_adz:
+            for item in res_adz.get('results', []):
+                lista_final.append({
+                    "titulo": item.get('title'),
+                    "empresa": item.get('company', {}).get('display_name', 'Confidencial'),
+                    "cidade": item.get('location', {}).get('display_name', 'Remoto'),
+                    "uf": "BR",
+                    "tipo": "Remoto" if "remoto" in item.get('description', '').lower() else "Presencial",
+                    "salario": item.get('salary_min', 0),
+                    "nivel": "Pleno",
+                    "fonte": "Adzuna",
+                    "link": item.get('redirect_url')
+                })
+        else:
+            st.sidebar.warning("⚠️ Adzuna: Chave ativa, mas sem resultados para 'administrativo'.")
+    except Exception as e:
+        st.sidebar.error(f"⚠️ Erro Adzuna: Verifique suas chaves no Secrets.")
 
     # 3. JOOBLE API
     try:
@@ -89,26 +92,32 @@ def carregar_vagas_integradas():
         url_jooble = f"https://br.jooble.org/api/{jkey}"
         body = {"keywords": "administrativo", "location": "Brasil"}
         res_jooble = requests.post(url_jooble, json=body).json()
-        for item in res_jooble.get('jobs', []):
-            lista_final.append({
-                "titulo": item.get('title'),
-                "empresa": item.get('company', 'Confidencial'),
-                "cidade": item.get('location', 'Brasil'),
-                "uf": "BR",
-                "tipo": "Híbrido",
-                "salario": 0,
-                "nivel": "Não informado",
-                "fonte": "Jooble",
-                "link": item.get('link')
-            })
-    except:
-        pass
+        if 'jobs' in res_jooble:
+            for item in res_jooble.get('jobs', []):
+                lista_final.append({
+                    "titulo": item.get('title'),
+                    "empresa": item.get('company', 'Confidencial'),
+                    "cidade": item.get('location', 'Brasil'),
+                    "uf": "BR",
+                    "tipo": "Híbrido",
+                    "salario": 0,
+                    "nivel": "Não informado",
+                    "fonte": "Jooble",
+                    "link": item.get('link')
+                })
+        else:
+            st.sidebar.warning("⚠️ Jooble: Limite de busca atingido ou sem vagas.")
+    except Exception as e:
+        st.sidebar.error(f"⚠️ Erro Jooble: Verifique sua Jooble Key.")
 
     return pd.DataFrame(lista_final)
 
 # --- INTERFACE ---
 def main():
     st.title("💼 Portal de Oportunidades CoreGov")
+    
+    # Barra lateral de status antes de carregar
+    st.sidebar.header("📡 Status de Conexão")
     
     df_vagas = carregar_vagas_integradas()
 
@@ -117,11 +126,16 @@ def main():
         return
 
     # --- FILTROS LATERAIS ---
-    with st.sidebar:
-        st.header("🔍 Filtros")
-        busca = st.text_input("Cargo:")
-        uf_sel = st.selectbox("Estado:", ["Todos"] + sorted(list(df_vagas['uf'].unique())))
-        tipo_sel = st.selectbox("Modalidade:", ["Todas"] + list(df_vagas['tipo'].unique()))
+    st.sidebar.divider()
+    st.sidebar.header("🔍 Filtros")
+    busca = st.sidebar.text_input("Cargo:")
+    
+    # Lista de UFs únicas (removendo nulos)
+    lista_ufs = sorted([uf for uf in df_vagas['uf'].unique() if pd.notna(uf)])
+    uf_sel = st.sidebar.selectbox("Estado:", ["Todos"] + lista_ufs)
+    
+    lista_tipos = [tipo for tipo in df_vagas['tipo'].unique() if pd.notna(tipo)]
+    tipo_sel = st.sidebar.selectbox("Modalidade:", ["Todas"] + lista_tipos)
 
     # Lógica de Filtro
     df_f = df_vagas.copy()
