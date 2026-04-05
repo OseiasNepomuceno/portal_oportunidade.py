@@ -1,6 +1,6 @@
 streamlit
 pandas
 requests
-st-gsheets-connection
 gspread
 oauth2client
+beautifulsoup4
