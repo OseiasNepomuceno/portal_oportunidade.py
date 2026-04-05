@@ -37,8 +37,9 @@ def minerar_e_salvar():
             return
 
         vagas = response.json().get('data', [])
-        print(f"📦 {len(vagas)} vagas encontradas no site.").")
+        print(f"📦 {len(vagas)} vagas encontradas no site.")
 
+        
         # 3. Envio para Planilha
         for vaga in vagas:
             linha = [
