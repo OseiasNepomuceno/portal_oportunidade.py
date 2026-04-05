@@ -13,7 +13,7 @@ def minerar_e_salvar():
         client = gspread.authorize(creds)
         
         # --- ATENÇÃO: SUBSTITUA PELO SEU ID REAL ABAIXO ---
-        spreadsheet_id = "COLOQUE_AQUI_O_ID_DA_SUA_PLANILHA" 
+        spreadsheet_id = "1hmGLBrUJxO8mZkqcZ6KsF3IXjV3_H8TNCnRHnjuukuo" 
         
         print(f"📂 Abrindo planilha ID: {spreadsheet_id}")
         sheet = client.open_by_key(spreadsheet_id).sheet1
