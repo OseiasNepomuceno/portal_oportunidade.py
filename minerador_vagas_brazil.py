@@ -1,6 +1,7 @@
 import pandas as pd
 import requests
-import os  # IMPORTANTE: Adicionado para ler os Secrets do GitHub
+import os
+import json  # Essencial para processar a chave do Google
 from datetime import datetime, timedelta
 from streamlit_gsheets import GSheetsConnection
 import streamlit as st
@@ -22,9 +23,17 @@ DIAS_LIMITE = 30
 
 def carregar_dados_existentes():
     try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
+        # Tenta usar a conta de serviço se estiver no GitHub
+        service_account_info = os.environ.get("GCP_SERVICE_ACCOUNT")
+        if service_account_info:
+            credentials_dict = json.loads(service_account_info)
+            conn = st.connection("gsheets", type=GSheetsConnection, service_account=credentials_dict)
+        else:
+            conn = st.connection("gsheets", type=GSheetsConnection)
+            
         return conn.read(ttl=0).dropna(how="all")
-    except:
+    except Exception as e:
+        print(f"Erro ao carregar dados: {e}")
         return pd.DataFrame()
 
 def minerar_vagas_novas():
@@ -84,8 +93,8 @@ def atualizar_planilha():
     df_antigo = carregar_dados_existentes()
     df_novas = minerar_vagas_novas()
     
-    if df_novas.empty:
-        print("⚠️ Nenhuma vaga nova encontrada nas APIs.")
+    if df_novas.empty and df_antigo.empty:
+        print("⚠️ Nenhuma vaga encontrada.")
         return
 
     # Unir e remover duplicatas
@@ -97,6 +106,11 @@ def atualizar_planilha():
     # Ordenar por data e gerar IDs
     df_total['Data_Captura'] = pd.to_datetime(df_total['Data_Captura'])
     df_total = df_total.sort_values(by='Data_Captura', ascending=False)
+    
+    # Limpeza por data limite
+    data_corte = datetime.now() - timedelta(days=DIAS_LIMITE)
+    df_total = df_total[df_total['Data_Captura'] >= data_corte]
+    
     df_total['Data_Captura'] = df_total['Data_Captura'].dt.strftime("%Y-%m-%d")
     df_total['ID'] = range(1, len(df_total) + 1)
 
@@ -105,7 +119,14 @@ def atualizar_planilha():
     df_total = df_total[colunas]
 
     try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
+        # Autenticação para Escrita
+        service_account_info = os.environ.get("GCP_SERVICE_ACCOUNT")
+        if service_account_info:
+            credentials_dict = json.loads(service_account_info)
+            conn = st.connection("gsheets", type=GSheetsConnection, service_account=credentials_dict)
+        else:
+            conn = st.connection("gsheets", type=GSheetsConnection)
+            
         conn.update(data=df_total)
         print(f"✅ Sucesso! Planilha atualizada com {len(df_total)} vagas.")
     except Exception as e:
