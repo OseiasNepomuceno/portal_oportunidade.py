@@ -22,9 +22,17 @@ jobs:
           pip install --upgrade pip
           pip install pandas requests st-gsheets-connection streamlit
 
+      # --- AJUSTE FINAL: CRIA O ARQUIVO DE SECRETS QUE O STREAMLIT EXIGE ---
+      - name: Criar Streamlit Secrets
+        run: |
+          mkdir -p .streamlit
+          echo "[connections.gsheets]" > .streamlit/secrets.toml
+          echo "spreadsheet = \"${{ secrets.GSHEETS_URL }}\"" >> .streamlit/secrets.toml
+          echo "service_account = '${{ secrets.GCP_SERVICE_ACCOUNT }}'" >> .streamlit/secrets.toml
+
       - name: Rodar Minerador
         env:
-          # Variáveis de ambiente vinculadas aos seus Secrets do GitHub
+          # Variáveis de ambiente para o Python localizar
           APP_ID: ${{ secrets.APP_ID }}
           APP_KEY: ${{ secrets.APP_KEY }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
