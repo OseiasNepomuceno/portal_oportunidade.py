@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import os
 
 # Configuração da Página
 st.set_page_config(page_title="Portal de Oportunidades | CoreGov", page_icon="💼", layout="wide")
@@ -24,14 +25,25 @@ st.markdown("""
 
 # --- FUNÇÕES DE APOIO ---
 def carregar_dados():
-    # Aqui simulamos a leitura de um CSV ou Banco de Dados
-    # Futuramente: df = pd.read_csv('vagas.csv')
-    vagas = [
-        {"id": 1, "titulo": "Analista Administrativo", "empresa": "CoreGov Consultoria", "cidade": "Rio de Janeiro", "uf": "RJ", "tipo": "Remoto", "salario": 3500.00, "area": "Administrativo"},
-        {"id": 2, "titulo": "Consultor de Licitações", "empresa": "GovTech", "cidade": "São Paulo", "uf": "SP", "tipo": "Híbrido", "salario": 5000.00, "area": "Consultoria"},
-        {"id": 3, "titulo": "Auxiliar de RH", "empresa": "Parceiro Local", "cidade": "Frutal", "uf": "MG", "tipo": "Presencial", "salario": 2200.00, "area": "Recursos Humanos"}
-    ]
-    return pd.DataFrame(vagas)
+    caminho_vagas = 'vagas.csv'
+    
+    # Verifica se o arquivo existe. Se não existir, cria um modelo inicial.
+    if not os.path.exists(caminho_vagas):
+        vagas_iniciais = [
+            {"id": 1, "titulo": "Analista Administrativo", "empresa": "CoreGov Consultoria", "cidade": "Rio de Janeiro", "uf": "RJ", "tipo": "Remoto", "salario": 3500.00, "area": "Administrativo"},
+            {"id": 2, "titulo": "Consultor de Licitações", "empresa": "GovTech", "cidade": "São Paulo", "uf": "SP", "tipo": "Híbrido", "salario": 5000.00, "area": "Consultoria"},
+            {"id": 3, "titulo": "Auxiliar de RH", "empresa": "Parceiro Local", "cidade": "Frutal", "uf": "MG", "tipo": "Presencial", "salario": 2200.00, "area": "Recursos Humanos"}
+        ]
+        df_init = pd.DataFrame(vagas_iniciais)
+        df_init.to_csv(caminho_vagas, index=False, encoding='utf-8')
+        return df_init
+    
+    # Se o arquivo existe, carrega os dados reais
+    try:
+        return pd.read_csv(caminho_vagas, encoding='utf-8')
+    except:
+        # Fallback para latin1 caso haja erro de encoding
+        return pd.read_csv(caminho_vagas, encoding='latin1')
 
 # --- INTERFACE PRINCIPAL ---
 def main():
@@ -40,16 +52,24 @@ def main():
 
     df_vagas = carregar_dados()
 
+    # Se o DataFrame vier vazio por algum motivo, evitar erro nos filtros
+    if df_vagas.empty:
+        st.warning("A base de dados de vagas está vazia.")
+        return
+
     # --- FILTROS ---
     with st.sidebar:
-        st.image("https://via.placeholder.com/150x50?text=CoreGov+Logo", use_column_width=True) # Coloque sua logo aqui
+        # st.image("sua_logo.png", use_column_width=True) # Descomente e aponte para sua logo real
         st.header("Filtrar Oportunidades")
         
         busca = st.text_input("🔍 O que você busca?", placeholder="Cargo ou palavra-chave")
         
-        uf_filtro = st.multiselect("Estado (UF):", options=sorted(df_vagas['uf'].unique()), default=sorted(df_vagas['uf'].unique()))
+        # Filtros dinâmicos baseados no que existe no CSV
+        lista_ufs = sorted(df_vagas['uf'].unique())
+        uf_filtro = st.multiselect("Estado (UF):", options=lista_ufs, default=lista_ufs)
         
-        tipo_filtro = st.multiselect("Modalidade:", options=df_vagas['tipo'].unique(), default=df_vagas['tipo'].unique())
+        lista_tipos = df_vagas['tipo'].unique()
+        tipo_filtro = st.multiselect("Modalidade:", options=lista_tipos, default=lista_tipos)
         
         st.divider()
         st.caption("Desenvolvido por Oseias | CoreGov 2026")
@@ -58,10 +78,12 @@ def main():
     df_filtrado = df_vagas[
         (df_vagas['uf'].isin(uf_filtro)) & 
         (df_vagas['tipo'].isin(tipo_filtro))
-    ]
+    ].copy()
     
     if busca:
-        df_filtrado = df_filtrado[df_filtrado['titulo'].str.contains(busca, case=False) | df_filtrado['empresa'].str.contains(busca, case=False)]
+        mask = df_filtrado['titulo'].str.contains(busca, case=False, na=False) | \
+               df_filtrado['empresa'].str.contains(busca, case=False, na=False)
+        df_filtrado = df_filtrado[mask]
 
     # --- EXIBIÇÃO ---
     st.write(f"Exibindo **{len(df_filtrado)}** vaga(s) encontrada(s):")
@@ -72,14 +94,15 @@ def main():
                 <div class="titulo-vaga">{vaga['titulo']}</div>
                 <div class="empresa-vaga">🏢 {vaga['empresa']}</div>
                 <div class="info-vaga">📍 {vaga['cidade']} - {vaga['uf']} | 💻 {vaga['tipo']}</div>
-                <div class="info-vaga">💰 R$ {vaga['salario']:.2f}</div>
+                <div class="info-vaga">💰 R$ {float(vaga['salario']):,.2f}</div>
             </div>
         """, unsafe_allow_html=True)
         
         col1, col2 = st.columns([1, 4])
         with col1:
+            # Botão de ação (Inscrição)
             if st.button(f"Ver Detalhes", key=f"detalhe_{vaga['id']}"):
-                st.toast(f"Abrindo detalhes para {vaga['titulo']}...")
+                st.toast(f"Abrindo detalhes para {vaga['titulo']}...", icon="🚀")
         st.write("") # Espaçador entre cards
 
 if __name__ == "__main__":
