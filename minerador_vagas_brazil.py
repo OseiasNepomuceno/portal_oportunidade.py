@@ -20,14 +20,31 @@ def obter_chave(nome_da_chave):
 DIAS_LIMITES = 30
 
 def conectar_gsheets():
-    """Conexão Pura: Deixa o Streamlit ler as variáveis de ambiente automaticamente"""
+    """Versão Blindada: Injeta as credenciais manualmente para evitar erros de permissão no GitHub"""
+    # Captura os valores que configuramos no arquivo .yml
+    url_planilha = os.environ.get("STREAMLIT_CONNECTIONS_GSHEETS_SPREADSHEET")
+    service_account_info = os.environ.get("STREAMLIT_CONNECTIONS_GSHEETS_SERVICE_ACCOUNT")
+    
     try:
-        # Não passamos nada aqui. O Streamlit vai procurar por variáveis 
-        # que começam com 'STREAMLIT_CONNECTIONS_GSHEETS_...'
+        # Injeção manual no dicionário interno do Streamlit
+        if "connections" not in st.secrets:
+            st.secrets["connections"] = {}
+        
+        st.secrets["connections"]["gsheets"] = {
+            "spreadsheet": url_planilha,
+            "url": url_planilha
+        }
+        
+        if service_account_info:
+            # Converte o texto JSON do GitHub Secret em um dicionário Python e injeta
+            st.secrets["connections"]["gsheets"]["service_account"] = json.loads(service_account_info)
+
+        # Agora a conexão terá permissão de escrita (CRUD)
         return st.connection("gsheets", type=GSheetsConnection)
     except Exception as e:
         print(f"Erro na conexão com Google Sheets: {e}")
         return None
+
 def carregar_dados_existentes():
     conn = conectar_gsheets()
     if conn:
