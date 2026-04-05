@@ -20,22 +20,11 @@ def obter_chave(nome_da_chave):
 DIAS_LIMITES = 30
 
 def conectar_gsheets():
-    """Conexão Universal: Usa kwargs para evitar erros de versão da biblioteca"""
-    url_planilha = obter_chave("GSHEETS_URL")
-    service_account_info = os.environ.get("GCP_SERVICE_ACCOUNT")
-    
+    """Conexão Pura: Deixa o Streamlit ler as variáveis de ambiente automaticamente"""
     try:
-        # Criamos o dicionário de configuração que a biblioteca espera internamente
-        conf = {}
-        if url_planilha:
-            conf["spreadsheet"] = url_planilha
-        
-        if service_account_info:
-            conf["service_account"] = json.loads(service_account_info)
-
-        # Passamos a configuração desempacotada com **
-        return st.connection("gsheets", type=GSheetsConnection, **conf)
-        
+        # Não passamos nada aqui. O Streamlit vai procurar por variáveis 
+        # que começam com 'STREAMLIT_CONNECTIONS_GSHEETS_...'
+        return st.connection("gsheets", type=GSheetsConnection)
     except Exception as e:
         print(f"Erro na conexão com Google Sheets: {e}")
         return None
