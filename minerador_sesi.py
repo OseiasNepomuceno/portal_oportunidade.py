@@ -19,34 +19,42 @@ def minerar_e_salvar():
         sheet = client.open_by_key(spreadsheet_id).sheet1
         print("✅ Conexão com a planilha estabelecida!")
 
-       # 2. Busca de Dados
-        # Nova URL da API (ajustada para o padrão atual)
+      # 2. Busca de Dados
+        # Esta é a URL exata que o sistema Empregare usa para o SESI SP
         url = "https://sesisenaisp.empregare.com/api/v1/vacancies/search"
         
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "pt-BR,pt;q=0.9",
             "Origin": "https://sesisenaisp.empregare.com",
             "Referer": "https://sesisenaisp.empregare.com/pt-br/vagas"
         }
         
-        print("🛰️ Acessando API do SESI/SENAI...")
+        # Parâmetros que o site envia para trazer as vagas recentes
+        params = {
+            "page": 1,
+            "limit": 20,
+            "sorting": "newest",
+            "is_active": "true"
+        }
         
-        # Testando com a URL de busca pública caso a API direta dê 404
-        response = requests.get(url, params={"page": 1, "limit": 10}, headers=headers)
+        print("🛰️ Acessando portal de vagas SESI/SENAI...")
+        response = requests.get(url, params=params, headers=headers)
         
         if response.status_code != 200:
-            print(f"⚠️ Erro {response.status_code}. Tentando URL alternativa...")
-            # Tentativa 2: URL de fallback
-            url = "https://sesisenaisp.empregare.com/api/v1/vacancies"
-            response = requests.get(url, params={"page": 1, "limit": 10}, headers=headers)
-
-        if response.status_code != 200:
-            print(f"❌ Não foi possível acessar o site (Erro {response.status_code})")
+            print(f"❌ Erro de acesso: {response.status_code}. O site pode estar em manutenção.")
             return
 
-        vagas = response.json().get('data', [])
-        print(f"📦 {len(vagas)} vagas encontradas no site.")
+        # Tentando ler os dados com segurança
+        dados_json = response.json()
+        vagas = dados_json.get('data', [])
+        
+        if not vagas:
+            print("⚠️ Nenhuma vaga encontrada no momento.")
+            return
+
+        print(f"📦 {len(vagas)} vagas encontradas! Enviando para a planilha...")
         
         # 3. Envio para Planilha
         for vaga in vagas:
