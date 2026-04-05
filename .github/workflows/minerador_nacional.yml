@@ -2,34 +2,26 @@ name: Minerador Nacional de Vagas
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Roda todo dia à meia-noite (Horário UTC)
-  workflow_dispatch: # Permite que você rode manualmente clicando no botão
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar Código
-        uses: actions/checkout@v3
-
-      - name: Configurar Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Instalar Dependências
-        run: |
-          pip install --upgrade pip
-          pip install pandas requests st-gsheets-connection streamlit
+        run: pip install pandas requests gspread oauth2client
 
       - name: Rodar Minerador
         env:
-          # Chaves das APIs (Adzuna e SerpApi)
           APP_ID: ${{ secrets.APP_ID }}
           APP_KEY: ${{ secrets.APP_KEY }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
-          
-          # Variáveis de ambiente que o script Python usará para criar o secrets.toml
-          STREAMLIT_CONNECTIONS_GSHEETS_SPREADSHEET: ${{ secrets.GSHEETS_URL }}
-          STREAMLIT_CONNECTIONS_GSHEETS_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          GSHEETS_URL: ${{ secrets.GSHEETS_URL }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
         run: python minerador_vagas_brazil.py
