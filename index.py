@@ -190,4 +190,24 @@ def main():
     for i, vaga in df_f.iterrows():
         try:
             sal = float(vaga['salario'])
-            texto_salario = f"R$ {sal:
+            texto_salario = f"R$ {sal:,.2f}" if sal > 0 else "A combinar"
+        except:
+            texto_salario = "A combinar"
+
+        st.markdown(f"""
+            <div class="vaga-card">
+                <div class="titulo-vaga">{vaga['titulo']}</div>
+                <div class="empresa-vaga">🏢 {vaga['empresa']}</div>
+                <div>
+                    <span class="tag tag-local">📍 {vaga['cidade']}</span>
+                    <span class="tag tag-tipo">💻 {vaga['tipo']}</span>
+                    <span class="tag tag-fonte">🔗 {vaga['fonte']}</span>
+                </div>
+                <div class="valor-vaga">💰 {texto_salario}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        st.link_button(f"🚀 Ver detalhes e Candidatar-se", vaga['link'], key=f"btn_{i}")
+        st.write("")
+
+if __name__ == "__main__":
+    main()
