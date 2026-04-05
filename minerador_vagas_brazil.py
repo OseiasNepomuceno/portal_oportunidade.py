@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from streamlit_gsheets import GSheetsConnection
 import streamlit as st
 
-# --- FUNÇÃO HÍBRIDA PARA PEGAR AS CHAVES (GITHUB OU STREAMLIT) ---
+# --- FUNÇÃO HÍBRIDA PARA PEGAR AS CHAVES ---
 def obter_chave(nome_da_chave):
     valor = os.environ.get(nome_da_chave)
     if valor:
@@ -20,26 +20,27 @@ def obter_chave(nome_da_chave):
 DIAS_LIMITES = 30
 
 def conectar_gsheets():
-    """Versão Blindada: Injeta as credenciais manualmente para evitar erros de permissão no GitHub"""
-    # Captura os valores que configuramos no arquivo .yml
+    """Cria o arquivo de segredos fisicamente via Python para garantir compatibilidade no GitHub"""
     url_planilha = os.environ.get("STREAMLIT_CONNECTIONS_GSHEETS_SPREADSHEET")
     service_account_info = os.environ.get("STREAMLIT_CONNECTIONS_GSHEETS_SERVICE_ACCOUNT")
     
-    try:
-        # Injeção manual no dicionário interno do Streamlit
-        if "connections" not in st.secrets:
-            st.secrets["connections"] = {}
-        
-        st.secrets["connections"]["gsheets"] = {
-            "spreadsheet": url_planilha,
-            "url": url_planilha
-        }
-        
-        if service_account_info:
-            # Converte o texto JSON do GitHub Secret em um dicionário Python e injeta
-            st.secrets["connections"]["gsheets"]["service_account"] = json.loads(service_account_info)
+    dot_streamlit_path = ".streamlit"
+    secrets_path = os.path.join(dot_streamlit_path, "secrets.toml")
 
-        # Agora a conexão terá permissão de escrita (CRUD)
+    try:
+        # 1. Garante que a pasta existe
+        if not os.path.exists(dot_streamlit_path):
+            os.makedirs(dot_streamlit_path)
+
+        # 2. Cria o arquivo secrets.toml formatado corretamente
+        # Usamos aspas simples para o service_account para proteger o JSON interno
+        with open(secrets_path, "w", encoding="utf-8") as f:
+            f.write("[connections.gsheets]\n")
+            f.write(f'spreadsheet = "{url_planilha}"\n')
+            if service_account_info:
+                f.write(f"service_account = '{service_account_info}'\n")
+
+        # 3. Agora o Streamlit encontrará o arquivo e terá permissão de escrita
         return st.connection("gsheets", type=GSheetsConnection)
     except Exception as e:
         print(f"Erro na conexão com Google Sheets: {e}")
@@ -79,7 +80,7 @@ def minerar_vagas_novas():
                     "Área": "Geral",
                     "Link_Inscrição": item.get('redirect_url'),
                     "Status": "Ativa",
-                    "Data_Captura": hoje
+                    "Data_Captura": hoye if 'hoye' not in locals() else hoje # Pequeno ajuste de segurança
                 })
         except Exception as e: print(f"Erro Adzuna: {e}")
 
@@ -128,6 +129,9 @@ def atualizar_planilha():
     df_total = df_total[df_total['Data_Captura'] >= data_corte]
     
     df_total['Data_Captura'] = df_total['Data_Captura'].dt.strftime("%Y-%m-%d")
+    
+    # Recriar ID sequencial
+    df_total = df_total.reset_index(drop=True)
     df_total['ID'] = range(1, len(df_total) + 1)
 
     colunas = ["ID", "Título", "Empresa", "Cidade", "UF", "Tipo", "Salário", "Fonte", "Área", "Link_Inscrição", "Status", "Data_Captura"]
