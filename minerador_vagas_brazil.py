@@ -20,21 +20,28 @@ def obter_chave(nome_da_chave):
 DIAS_LIMITES = 30
 
 def conectar_gsheets():
-    """Função centralizada para criar a conexão com permissão de escrita"""
+    """Função com Injeção Direta para compatibilidade total"""
     url_planilha = obter_chave("GSHEETS_URL")
     service_account_info = os.environ.get("GCP_SERVICE_ACCOUNT")
     
     try:
-        if service_account_info:
-            # Se estiver no GitHub, usa o JSON e a URL explicitamente
-            credentials_dict = json.loads(service_account_info)
-            # AJUSTE FINAL: Alterado de 'spreadsheet' para 'url'
-            return st.connection("gsheets", type=GSheetsConnection, 
-                                 url=url_planilha, 
-                                 service_account=credentials_dict)
-        else:
-            # Se for local ou Streamlit Cloud direto
-            return st.connection("gsheets", type=GSheetsConnection)
+        # Injetando as configurações diretamente no st.secrets em tempo de execução
+        # Isso resolve conflitos de nomes de argumentos entre versões da biblioteca
+        if url_planilha:
+            if "connections" not in st.secrets:
+                st.secrets["connections"] = {}
+            
+            st.secrets["connections"]["gsheets"] = {
+                "spreadsheet": url_planilha,
+                "url": url_planilha  # Definimos ambos para não ter erro
+            }
+            
+            if service_account_info:
+                st.secrets["connections"]["gsheets"]["service_account"] = json.loads(service_account_info)
+
+        # Chamada limpa: ele vai ler o que injetamos acima automaticamente
+        return st.connection("gsheets", type=GSheetsConnection)
+        
     except Exception as e:
         print(f"Erro na conexão com Google Sheets: {e}")
         return None
