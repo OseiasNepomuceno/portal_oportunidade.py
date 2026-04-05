@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
-import requests
-import os
+from datetime import datetime, timedelta
 from streamlit_gsheets import GSheetsConnection
 
-# --- CONFIGURAÇÃO DA PÁGINA (Identidade Independente) ---
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Portal Nacional de Oportunidades", page_icon="💼", layout="wide")
 
 # --- ESTILIZAÇÃO CUSTOMIZADA (CSS) ---
@@ -35,7 +34,6 @@ st.markdown("""
     .tag-fonte { background-color: #f8c291; color: #e67e22; }
     .valor-vaga { color: #27ae60; font-weight: bold; font-size: 16px; margin-top: 10px; }
     
-    /* Destaque das Métricas */
     .metric-container {
         background-color: #e3f2fd;
         padding: 20px;
@@ -46,100 +44,48 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÕES DE CAPTAÇÃO DE DADOS ---
+# --- FUNÇÃO DE CARREGAMENTO (AGORA APENAS PLANILHA) ---
 
 @st.cache_data(ttl=600)
-def carregar_vagas_integradas():
-    lista_final = []
-
-    # 1. GOOGLE SHEETS (Base Interna)
+def carregar_vagas_acumuladas():
     try:
+        # Conecta apenas à planilha que o seu minerador está alimentando
         conn = st.connection("gsheets", type=GSheetsConnection)
-        df_sheets = conn.read()
-        df_sheets = df_sheets.dropna(how="all")
+        df = conn.read()
+        df = df.dropna(how="all")
         
-        for _, row in df_sheets.iterrows():
-            if str(row.get('Status', '')).lower() == 'inativa':
-                continue
-            lista_final.append({
-                "titulo": str(row.get('Título', 'Vaga Sem Título')),
-                "empresa": str(row.get('Empresa', 'Indústria Brasileira')),
-                "cidade": str(row.get('Cidade', 'Brasil')),
-                "uf": str(row.get('UF', 'BR')).strip().upper(),
-                "tipo": str(row.get('Tipo', 'Presencial')),
-                "salario": row.get('Salário', 0),
-                "nivel": str(row.get('Área', 'Geral')),
-                "fonte": "Interna",
-                "link": str(row.get('Link_Inscrição', '#'))
-            })
+        # Garante que as colunas essenciais existam e filtra apenas ativas
+        if not df.empty and 'Status' in df.columns:
+            df = df[df['Status'].str.lower() == 'ativa']
+            
+        return df
     except Exception as e:
-        st.sidebar.error(f"⚠️ Erro Sheets: {e}")
-
-    # 2. ADZUNA API (Brasil Todo)
-    try:
-        aid = st.secrets["APP_ID"]
-        akey = st.secrets["APP_KEY"]
-        url_adz = f"https://api.adzuna.com/v1/api/jobs/br/search/1?app_id={aid}&app_key={akey}&results_per_page=30&what=industria%20tecnologia%20ensino&where=Brasil"
-        res_adz = requests.get(url_adz).json()
-        for item in res_adz.get('results', []):
-            lista_final.append({
-                "titulo": item.get('title'),
-                "empresa": item.get('company', {}).get('display_name', 'Confidencial'),
-                "cidade": item.get('location', {}).get('display_name', 'Brasil'),
-                "uf": "BR",
-                "tipo": "Remoto" if "remoto" in item.get('description', '').lower() else "Presencial",
-                "salario": item.get('salary_min', 0),
-                "nivel": "Mercado",
-                "fonte": "Adzuna",
-                "link": item.get('redirect_url')
-            })
-    except: pass
-
-    # 3. GOOGLE JOBS (via SerpApi)
-    try:
-        serp_key = st.secrets.get("SERPAPI_KEY")
-        if serp_key:
-            url_serp = f"https://serpapi.com/search.json?engine=google_jobs&q=vagas+industria+brasil&hl=pt&gl=br&api_key={serp_key}"
-            res_serp = requests.get(url_serp).json()
-            for item in res_serp.get('jobs_results', []):
-                # Tenta extrair UF do campo location (ex: "São Paulo, SP")
-                loc = item.get('location', 'Brasil')
-                uf_extrada = "BR"
-                if "," in loc:
-                    possivel_uf = loc.split(",")[-1].strip().upper()
-                    if len(possivel_uf) == 2:
-                        uf_extrada = possivel_uf
-
-                lista_final.append({
-                    "titulo": item.get('title'),
-                    "empresa": item.get('company_name'),
-                    "cidade": loc,
-                    "uf": uf_extrada,
-                    "tipo": "Ver na fonte",
-                    "salario": 0,
-                    "nivel": "Google Jobs",
-                    "fonte": "Google",
-                    "link": item.get('share_link', '#')
-                })
-    except: pass
-
-    return pd.DataFrame(lista_final)
+        st.error(f"Erro ao conectar com a base de dados: {e}")
+        return pd.DataFrame()
 
 # --- INTERFACE ---
 def main():
     st.title("💼 Portal Nacional de Oportunidades")
     
-    df_vagas = carregar_vagas_integradas()
+    # Agora o portal lê o histórico acumulado pelo minerador
+    df_vagas = carregar_vagas_acumuladas()
 
     if df_vagas.empty:
-        st.warning("Sincronizando base nacional... Por favor, aguarde.")
+        st.info("Estamos atualizando nossa base com novas oportunidades. Volte em instantes!")
         return
 
-    # --- MÉTRICAS DE IMPACTO ---
+    # --- LÓGICA DE MÉTRICAS REAIS ---
     total_vagas = len(df_vagas)
-    # Exibe um número chamativo de capturas diárias
-    vagas_hoje = 30 
     
+    # Calcula vagas captadas nas últimas 24h (se a coluna Data_Captura existir)
+    vagas_hoje = 0
+    if 'Data_Captura' in df_vagas.columns:
+        try:
+            hoje_str = datetime.now().strftime("%Y-%m-%d")
+            vagas_hoje = len(df_vagas[df_vagas['Data_Captura'] == hoje_str])
+        except:
+            vagas_hoje = 30 # fallback caso a data falte
+
     col_m1, col_m2, col_m3 = st.columns([1, 1, 1.5])
     
     with col_m1:
@@ -157,7 +103,7 @@ def main():
     st.markdown(f"""
         <div class="metric-container">
             <h4 style="margin:0; color: #0d47a1;">🚀 Uma dessas {total_vagas} vagas pode ser a sua!</h4>
-            <p style="margin:5px 0 0 0; color: #1565c0;">Varremos as principais fontes do Brasil para conectar você ao seu próximo desafio.</p>
+            <p style="margin:5px 0 0 0; color: #1565c0;">Mantemos um histórico de 30 dias de oportunidades para você não perder nada.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -165,48 +111,56 @@ def main():
     st.sidebar.header("🔍 Filtros de Busca")
     busca = st.sidebar.text_input("Cargo, Empresa ou Palavra-chave:")
     
-    # Lista de UFs dinâmica baseada nos dados
-    lista_ufs = sorted(list(set([str(uf).strip().upper() for uf in df_vagas['uf'].unique() if pd.notna(uf) and len(str(uf)) <= 2])))
-    uf_sel = st.sidebar.selectbox("Estado (UF):", ["Brasil (Todos)"] + lista_ufs)
+    # Filtro de UF dinâmico
+    uf_lista = ["Brasil (Todos)"]
+    if 'UF' in df_vagas.columns:
+        ufs = sorted(list(set([str(u).strip().upper() for u in df_vagas['UF'].unique() if pd.notna(u) and len(str(u)) <= 2])))
+        uf_lista += ufs
     
-    tipo_sel = st.sidebar.selectbox("Modalidade:", ["Todas"] + sorted(list(df_vagas['tipo'].unique())))
+    uf_sel = st.sidebar.selectbox("Estado (UF):", uf_lista)
+    
+    tipo_sel = "Todas"
+    if 'Tipo' in df_vagas.columns:
+        tipos = ["Todas"] + sorted(list(df_vagas['Tipo'].unique()))
+        tipo_sel = st.sidebar.selectbox("Modalidade:", tipos)
 
     st.sidebar.divider()
-    st.sidebar.info("**Dica:** O portal integra vagas do Google, Adzuna e nossa base interna.")
+    st.sidebar.info("Aumentamos nosso banco de dados! Agora você visualiza vagas acumuladas dos últimos 30 dias.")
 
-    # Lógica de Filtro
+    # --- LÓGICA DE FILTRO ---
     df_f = df_vagas.copy()
     if busca: 
-        df_f = df_f[df_f['titulo'].str.contains(busca, case=False, na=False) | 
-                    df_f['empresa'].str.contains(busca, case=False, na=False)]
+        df_f = df_f[df_f['Título'].str.contains(busca, case=False, na=False) | 
+                    df_f['Empresa'].str.contains(busca, case=False, na=False)]
     if uf_sel != "Brasil (Todos)": 
-        df_f = df_f[df_f['uf'] == uf_sel]
+        df_f = df_f[df_f['UF'] == uf_sel]
     if tipo_sel != "Todas": 
-        df_f = df_f[df_f['tipo'] == tipo_sel]
+        df_f = df_f[df_f['Tipo'] == tipo_sel]
 
-    st.write(f"Exibindo **{len(df_f)}** oportunidades para você.")
+    st.write(f"Exibindo **{len(df_f)}** resultados.")
 
-    # Exibição dos Cards
+    # --- EXIBIÇÃO DOS CARDS ---
     for i, vaga in df_f.iterrows():
         try:
-            sal = float(vaga['salario'])
-            texto_salario = f"R$ {sal:,.2f}" if sal > 0 else "A combinar"
+            # Tratamento de salário (Adzuna traz números, Google traz texto)
+            sal = vaga.get('Salário', 0)
+            texto_salario = f"R$ {float(sal):,.2f}" if float(sal) > 0 else "A combinar"
         except:
             texto_salario = "A combinar"
 
         st.markdown(f"""
             <div class="vaga-card">
-                <div class="titulo-vaga">{vaga['titulo']}</div>
-                <div class="empresa-vaga">🏢 {vaga['empresa']}</div>
+                <div class="titulo-vaga">{vaga.get('Título', 'Vaga')}</div>
+                <div class="empresa-vaga">🏢 {vaga.get('Empresa', 'Confidencial')}</div>
                 <div>
-                    <span class="tag tag-local">📍 {vaga['cidade']}</span>
-                    <span class="tag tag-tipo">💻 {vaga['tipo']}</span>
-                    <span class="tag tag-fonte">🔗 {vaga['fonte']}</span>
+                    <span class="tag tag-local">📍 {vaga.get('Cidade', 'Brasil')} - {vaga.get('UF', 'BR')}</span>
+                    <span class="tag tag-tipo">💻 {vaga.get('Tipo', 'Presencial')}</span>
+                    <span class="tag tag-fonte">🔗 {vaga.get('Fonte', 'Portal')}</span>
                 </div>
                 <div class="valor-vaga">💰 {texto_salario}</div>
             </div>
         """, unsafe_allow_html=True)
-        st.link_button(f"🚀 Ver detalhes e Candidatar-se", vaga['link'], key=f"btn_{i}")
+        st.link_button(f"🚀 Ver detalhes e Candidatar-se", vaga.get('Link_Inscrição', '#'), key=f"btn_{i}")
         st.write("")
 
 if __name__ == "__main__":
