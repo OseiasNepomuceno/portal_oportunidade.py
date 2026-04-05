@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import requests
-from streamlit_gsheets
-import GSheetsConnection
+import os
+from streamlit_gsheets import GSheetsConnection
 
 # Configuração da Página
 st.set_page_config(page_title="Portal de Oportunidades | CoreGov", page_icon="💼", layout="wide")
@@ -49,15 +49,15 @@ def carregar_vagas_integradas():
         df_sheets = df_sheets.dropna(how="all")
         for _, row in df_sheets.iterrows():
             lista_final.append({
-                "titulo": row.get('titulo', 'Vaga Sem Título'),
-                "empresa": row.get('empresa', 'Empresa Confidencial'),
-                "cidade": row.get('cidade', 'Brasil'),
-                "uf": row.get('uf', 'BR'),
-                "tipo": row.get('tipo', 'Presencial'),
+                "titulo": str(row.get('titulo', 'Vaga Sem Título')),
+                "empresa": str(row.get('empresa', 'Empresa Confidencial')),
+                "cidade": str(row.get('cidade', 'Brasil')),
+                "uf": str(row.get('uf', 'BR')),
+                "tipo": str(row.get('tipo', 'Presencial')),
                 "salario": row.get('salario', 0),
-                "nivel": row.get('nivel', 'Nível não informado'),
+                "nivel": str(row.get('nivel', 'Nível não informado')),
                 "fonte": "CoreGov (Interno)",
-                "link": row.get('link', '#')
+                "link": str(row.get('link', '#'))
             })
     except Exception as e:
         st.sidebar.error(f"Erro Planilha: {e}")
@@ -87,7 +87,6 @@ def carregar_vagas_integradas():
     try:
         jkey = st.secrets["JOOBLE_KEY"]
         url_jooble = f"https://br.jooble.org/api/{jkey}"
-        # Busca por cargos administrativos no Brasil
         body = {"keywords": "administrativo", "location": "Brasil"}
         res_jooble = requests.post(url_jooble, json=body).json()
         for item in res_jooble.get('jobs', []):
@@ -96,7 +95,7 @@ def carregar_vagas_integradas():
                 "empresa": item.get('company', 'Confidencial'),
                 "cidade": item.get('location', 'Brasil'),
                 "uf": "BR",
-                "tipo": "Híbrido", # Padronização Jooble
+                "tipo": "Híbrido",
                 "salario": 0,
                 "nivel": "Não informado",
                 "fonte": "Jooble",
@@ -126,14 +125,22 @@ def main():
 
     # Lógica de Filtro
     df_f = df_vagas.copy()
-    if busca: df_f = df_f[df_f['titulo'].str.contains(busca, case=False, na=False)]
-    if uf_sel != "Todos": df_f = df_f[df_f['uf'] == uf_sel]
-    if tipo_sel != "Todas": df_f = df_f[df_f['tipo'] == tipo_sel]
+    if busca: 
+        df_f = df_f[df_f['titulo'].str.contains(busca, case=False, na=False)]
+    if uf_sel != "Todos": 
+        df_f = df_f[df_f['uf'] == uf_sel]
+    if tipo_sel != "Todas": 
+        df_f = df_f[df_f['tipo'] == tipo_sel]
 
     st.write(f"Encontradas **{len(df_f)}** vagas disponíveis.")
 
     # Exibição dos Cards
-    for _, vaga in df_f.iterrows():
+    for i, vaga in df_f.iterrows():
+        try:
+            valor_salario = float(vaga['salario'])
+        except:
+            valor_salario = 0.0
+
         st.markdown(f"""
             <div class="vaga-card">
                 <div class="titulo-vaga">{vaga['titulo']}</div>
@@ -143,10 +150,10 @@ def main():
                     <span class="tag tag-tipo">💻 {vaga['tipo']}</span>
                     <span class="tag tag-fonte">🔗 {vaga['fonte']}</span>
                 </div>
-                <div class="valor-vaga">💰 R$ {float(vaga['salario']):,.2f}</div>
+                <div class="valor-vaga">💰 R$ {valor_salario:,.2f}</div>
             </div>
         """, unsafe_allow_html=True)
-        st.link_button("🚀 Ver detalhes e Candidatar-se", vaga['link'])
+        st.link_button(f"🚀 Ver detalhes ({vaga['fonte']})", vaga['link'], key=f"btn_{i}")
         st.write("")
 
 if __name__ == "__main__":
