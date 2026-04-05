@@ -28,8 +28,9 @@ def conectar_gsheets():
         if service_account_info:
             # Se estiver no GitHub, usa o JSON e a URL explicitamente
             credentials_dict = json.loads(service_account_info)
+            # AJUSTE FINAL: Alterado de 'spreadsheet' para 'url'
             return st.connection("gsheets", type=GSheetsConnection, 
-                                 spreadsheet=url_planilha, 
+                                 url=url_planilha, 
                                  service_account=credentials_dict)
         else:
             # Se for local ou Streamlit Cloud direto
