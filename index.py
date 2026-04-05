@@ -42,22 +42,28 @@ st.markdown("""
 def carregar_vagas_integradas():
     lista_final = []
 
-    # 1. GOOGLE SHEETS
+    # 1. GOOGLE SHEETS (Vinculando com suas colunas reais)
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         df_sheets = conn.read()
         df_sheets = df_sheets.dropna(how="all")
+        
+        # Mapeamento: Pegamos o nome da sua planilha e convertemos para o padrão do site
         for _, row in df_sheets.iterrows():
+            # Só adiciona se a vaga estiver com Status 'Ativa' ou se não houver coluna status
+            if str(row.get('Status', '')).lower() == 'inativa':
+                continue
+                
             lista_final.append({
-                "titulo": str(row.get('titulo', 'Vaga Sem Título')),
-                "empresa": str(row.get('empresa', 'Empresa Confidencial')),
-                "cidade": str(row.get('cidade', 'Brasil')),
-                "uf": str(row.get('uf', 'BR')),
-                "tipo": str(row.get('tipo', 'Presencial')),
-                "salario": row.get('salario', 0),
-                "nivel": str(row.get('nivel', 'Nível não informado')),
+                "titulo": str(row.get('Título', 'Vaga Sem Título')),
+                "empresa": str(row.get('Empresa', 'CoreGov')),
+                "cidade": str(row.get('Cidade', 'Brasil')),
+                "uf": str(row.get('UF', 'BR')),
+                "tipo": str(row.get('Tipo', 'Presencial')),
+                "salario": row.get('Salário', 0),
+                "nivel": str(row.get('Área', 'Geral')), # Usando 'Área' como nível/categoria
                 "fonte": "CoreGov (Interno)",
-                "link": str(row.get('link', '#'))
+                "link": str(row.get('Link_Inscrição', '#'))
             })
     except Exception as e:
         st.sidebar.error(f"⚠️ Erro Planilha: {e}")
@@ -66,7 +72,7 @@ def carregar_vagas_integradas():
     try:
         aid = st.secrets["ADZUNA_ID"]
         akey = st.secrets["ADZUNA_KEY"]
-        url_adz = f"https://api.adzuna.com/v1/api/jobs/br/search/1?app_id={aid}&app_key={akey}&results_per_page=10&what=administrativo"
+        url_adz = f"https://api.adzuna.com/v1/api/jobs/br/search/1?app_id={aid}&app_key={akey}&results_per_page=15&what=administrativo"
         res_adz = requests.get(url_adz).json()
         if 'results' in res_adz:
             for item in res_adz.get('results', []):
@@ -77,14 +83,12 @@ def carregar_vagas_integradas():
                     "uf": "BR",
                     "tipo": "Remoto" if "remoto" in item.get('description', '').lower() else "Presencial",
                     "salario": item.get('salary_min', 0),
-                    "nivel": "Pleno",
+                    "nivel": "Mercado",
                     "fonte": "Adzuna",
                     "link": item.get('redirect_url')
                 })
-        else:
-            st.sidebar.warning("⚠️ Adzuna: Chave ativa, mas sem resultados para 'administrativo'.")
-    except Exception as e:
-        st.sidebar.error(f"⚠️ Erro Adzuna: Verifique suas chaves no Secrets.")
+    except:
+        pass
 
     # 3. JOOBLE API
     try:
@@ -101,52 +105,47 @@ def carregar_vagas_integradas():
                     "uf": "BR",
                     "tipo": "Híbrido",
                     "salario": 0,
-                    "nivel": "Não informado",
+                    "nivel": "Mercado",
                     "fonte": "Jooble",
                     "link": item.get('link')
                 })
-        else:
-            st.sidebar.warning("⚠️ Jooble: Limite de busca atingido ou sem vagas.")
-    except Exception as e:
-        st.sidebar.error(f"⚠️ Erro Jooble: Verifique sua Jooble Key.")
+    except:
+        pass
 
     return pd.DataFrame(lista_final)
 
 # --- INTERFACE ---
 def main():
     st.title("💼 Portal de Oportunidades CoreGov")
-    
-    # Barra lateral de status antes de carregar
     st.sidebar.header("📡 Status de Conexão")
     
     df_vagas = carregar_vagas_integradas()
 
     if df_vagas.empty:
-        st.warning("Estamos sincronizando as vagas. Tente novamente em instantes.")
+        st.warning("Sincronizando base de dados... Por favor, aguarde.")
         return
 
     # --- FILTROS LATERAIS ---
     st.sidebar.divider()
     st.sidebar.header("🔍 Filtros")
-    busca = st.sidebar.text_input("Cargo:")
+    busca = st.sidebar.text_input("Cargo ou Área:")
     
-    # Lista de UFs únicas (removendo nulos)
-    lista_ufs = sorted([uf for uf in df_vagas['uf'].unique() if pd.notna(uf)])
+    lista_ufs = sorted([str(uf) for uf in df_vagas['uf'].unique() if pd.notna(uf)])
     uf_sel = st.sidebar.selectbox("Estado:", ["Todos"] + lista_ufs)
     
-    lista_tipos = [tipo for tipo in df_vagas['tipo'].unique() if pd.notna(tipo)]
+    lista_tipos = [str(tipo) for tipo in df_vagas['tipo'].unique() if pd.notna(tipo)]
     tipo_sel = st.sidebar.selectbox("Modalidade:", ["Todas"] + lista_tipos)
 
     # Lógica de Filtro
     df_f = df_vagas.copy()
     if busca: 
-        df_f = df_f[df_f['titulo'].str.contains(busca, case=False, na=False)]
+        df_f = df_f[df_f['titulo'].str.contains(busca, case=False, na=False) | df_f['nivel'].str.contains(busca, case=False, na=False)]
     if uf_sel != "Todos": 
         df_f = df_f[df_f['uf'] == uf_sel]
     if tipo_sel != "Todas": 
         df_f = df_f[df_f['tipo'] == tipo_sel]
 
-    st.write(f"Encontradas **{len(df_f)}** vagas disponíveis.")
+    st.write(f"Encontradas **{len(df_f)}** oportunidades.")
 
     # Exibição dos Cards
     for i, vaga in df_f.iterrows():
@@ -167,7 +166,7 @@ def main():
                 <div class="valor-vaga">💰 R$ {valor_salario:,.2f}</div>
             </div>
         """, unsafe_allow_html=True)
-        st.link_button(f"🚀 Ver detalhes ({vaga['fonte']})", vaga['link'], key=f"btn_{i}")
+        st.link_button(f"🚀 Ver detalhes e Candidatar-se", vaga['link'], key=f"btn_{i}")
         st.write("")
 
 if __name__ == "__main__":
