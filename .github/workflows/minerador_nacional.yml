@@ -15,7 +15,7 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10' # Atualizado para evitar erros de dependências
+          python-version: '3.10'
 
       - name: Instalar Dependências
         run: |
@@ -28,6 +28,6 @@ jobs:
           APP_ID: ${{ secrets.APP_ID }}
           APP_KEY: ${{ secrets.APP_KEY }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
-          # Verifique se o nome do seu Secret para a URL da planilha é exatamente GSHEETS_URL
-          CONNECTIONS_GSHEETS_SPREADSHEET: ${{ secrets.GSHEETS_URL }}
+          GSHEETS_URL: ${{ secrets.GSHEETS_URL }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
         run: python minerador_vagas_brazil.py
