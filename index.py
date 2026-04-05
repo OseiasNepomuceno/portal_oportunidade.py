@@ -65,7 +65,7 @@ def carregar_vagas_integradas():
                 "titulo": str(row.get('Título', 'Vaga Sem Título')),
                 "empresa": str(row.get('Empresa', 'Indústria Brasileira')),
                 "cidade": str(row.get('Cidade', 'Brasil')),
-                "uf": str(row.get('UF', 'BR')),
+                "uf": str(row.get('UF', 'BR')).strip().upper(),
                 "tipo": str(row.get('Tipo', 'Presencial')),
                 "salario": row.get('Salário', 0),
                 "nivel": str(row.get('Área', 'Geral')),
@@ -102,12 +102,20 @@ def carregar_vagas_integradas():
             url_serp = f"https://serpapi.com/search.json?engine=google_jobs&q=vagas+industria+brasil&hl=pt&gl=br&api_key={serp_key}"
             res_serp = requests.get(url_serp).json()
             for item in res_serp.get('jobs_results', []):
+                # Tenta extrair UF do campo location (ex: "São Paulo, SP")
+                loc = item.get('location', 'Brasil')
+                uf_extrada = "BR"
+                if "," in loc:
+                    possivel_uf = loc.split(",")[-1].strip().upper()
+                    if len(possivel_uf) == 2:
+                        uf_extrada = possivel_uf
+
                 lista_final.append({
                     "titulo": item.get('title'),
                     "empresa": item.get('company_name'),
-                    "cidade": item.get('location', 'Brasil'),
-                    "uf": "BR",
-                    "tipo": "A combinar",
+                    "cidade": loc,
+                    "uf": uf_extrada,
+                    "tipo": "Ver na fonte",
                     "salario": 0,
                     "nivel": "Google Jobs",
                     "fonte": "Google",
@@ -129,7 +137,8 @@ def main():
 
     # --- MÉTRICAS DE IMPACTO ---
     total_vagas = len(df_vagas)
-    vagas_hoje = 30 # Valor representativo da última captação mensal/diária
+    # Exibe um número chamativo de capturas diárias
+    vagas_hoje = 30 
     
     col_m1, col_m2, col_m3 = st.columns([1, 1, 1.5])
     
@@ -148,7 +157,7 @@ def main():
     st.markdown(f"""
         <div class="metric-container">
             <h4 style="margin:0; color: #0d47a1;">🚀 Uma dessas {total_vagas} vagas pode ser a sua!</h4>
-            <p style="margin:5px 0 0 0; color: #1565c0;">Nossa inteligência varre o Brasil inteiro para trazer as melhores opções de carreira.</p>
+            <p style="margin:5px 0 0 0; color: #1565c0;">Varremos as principais fontes do Brasil para conectar você ao seu próximo desafio.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -156,13 +165,14 @@ def main():
     st.sidebar.header("🔍 Filtros de Busca")
     busca = st.sidebar.text_input("Cargo, Empresa ou Palavra-chave:")
     
-    lista_ufs = sorted(list(set([str(uf).strip().upper() for uf in df_vagas['uf'].unique() if pd.notna(uf)])))
+    # Lista de UFs dinâmica baseada nos dados
+    lista_ufs = sorted(list(set([str(uf).strip().upper() for uf in df_vagas['uf'].unique() if pd.notna(uf) and len(str(uf)) <= 2])))
     uf_sel = st.sidebar.selectbox("Estado (UF):", ["Brasil (Todos)"] + lista_ufs)
     
-    tipo_sel = st.sidebar.selectbox("Modalidade:", ["Todas"] + list(df_vagas['tipo'].unique()))
+    tipo_sel = st.sidebar.selectbox("Modalidade:", ["Todas"] + sorted(list(df_vagas['tipo'].unique())))
 
     st.sidebar.divider()
-    st.sidebar.info("**Dica:** Use o filtro de estado para encontrar vagas próximas a você.")
+    st.sidebar.info("**Dica:** O portal integra vagas do Google, Adzuna e nossa base interna.")
 
     # Lógica de Filtro
     df_f = df_vagas.copy()
@@ -174,30 +184,10 @@ def main():
     if tipo_sel != "Todas": 
         df_f = df_f[df_f['tipo'] == tipo_sel]
 
-    st.write(f"Exibindo **{len(df_f)}** resultados para sua busca.")
+    st.write(f"Exibindo **{len(df_f)}** oportunidades para você.")
 
     # Exibição dos Cards
     for i, vaga in df_f.iterrows():
         try:
             sal = float(vaga['salario'])
-            texto_salario = f"R$ {sal:,.2f}" if sal > 0 else "A combinar"
-        except:
-            texto_salario = "A combinar"
-
-        st.markdown(f"""
-            <div class="vaga-card">
-                <div class="titulo-vaga">{vaga['titulo']}</div>
-                <div class="empresa-vaga">🏢 {vaga['empresa']}</div>
-                <div>
-                    <span class="tag tag-local">📍 {vaga['cidade']} - {vaga['uf']}</span>
-                    <span class="tag tag-tipo">💻 {vaga['tipo']}</span>
-                    <span class="tag tag-fonte">🔗 Fonte: {vaga['fonte']}</span>
-                </div>
-                <div class="valor-vaga">💰 {texto_salario}</div>
-            </div>
-        """, unsafe_allow_html=True)
-        st.link_button(f"🚀 Ver detalhes na {vaga['fonte']}", vaga['link'], key=f"btn_{i}")
-        st.write("")
-
-if __name__ == "__main__":
-    main()
+            texto_salario = f"R$ {sal:
