@@ -22,19 +22,20 @@ jobs:
           pip install --upgrade pip
           pip install pandas requests st-gsheets-connection streamlit
 
-      # --- AJUSTE DEFINITIVO: CRIA O ARQUIVO DE SECRETS TRATANDO AS ASPAS DO JSON ---
+      # --- SOLUÇÃO BLINDADA: CRIA O SECRETS SEM CONFLITO DE ASPAS ---
       - name: Criar Streamlit Secrets
+        env:
+          GCP_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          GSHEET_URL: ${{ secrets.GSHEETS_URL }}
         run: |
           mkdir -p .streamlit
-          cat <<EOF > .streamlit/secrets.toml
-          [connections.gsheets]
-          spreadsheet = "${{ secrets.GSHEETS_URL }}"
-          service_account = '${{ secrets.GCP_SERVICE_ACCOUNT }}'
-          EOF
+          echo "[connections.gsheets]" > .streamlit/secrets.toml
+          echo "spreadsheet = \"$GSHEET_URL\"" >> .streamlit/secrets.toml
+          echo -n "service_account = " >> .streamlit/secrets.toml
+          echo "$GCP_JSON" >> .streamlit/secrets.toml
 
       - name: Rodar Minerador
         env:
-          # Variáveis de ambiente para o Python localizar
           APP_ID: ${{ secrets.APP_ID }}
           APP_KEY: ${{ secrets.APP_KEY }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
