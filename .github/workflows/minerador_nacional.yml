@@ -1,0 +1,32 @@
+name: Minerador Nacional de Vagas
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Roda todo dia à meia-noite (Horário UTC)
+  workflow_dispatch: # Permite que você rode manualmente clicando no botão
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar Código
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar Dependências
+        run: |
+          pip install pandas requests streamlit-gsheets-connection streamlit
+
+      - name: Rodar Minerador
+        env:
+          # Aqui o GitHub pega as chaves que você salvou em "Secrets > Actions"
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_KEY: ${{ secrets.APP_KEY }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          # Para o GSheets funcionar via script, ele precisa das credenciais
+          CONNECTIONS_GSHEETS_SPREADSHEET: ${{ secrets.GSHEETS_URL }}
+        run: python minerador_vagas_brazil.py
