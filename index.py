@@ -6,9 +6,10 @@ st.set_page_config(page_title="Engenharia de Carreira IA", layout="wide", page_i
 st.title("🚀 Inteligência de Aprovação: O Currículo Irrecusável")
 st.markdown("---")
 
-# Inicialização de estados do sistema
-if "diagnostico_gerado" not in st.session_state:
-    st.session_state.diagnostico_gerado = False
+# --- LÓGICA DE ESTADO (SESSION STATE) ---
+# Isso garante que o formulário apareça e permaneça na tela
+if "mostrar_diagnostico" not in st.session_state:
+    st.session_state.mostrar_diagnostico = False
 
 # --- CAMADA 1: CAPTAÇÃO DE DADOS INICIAIS ---
 col1, col2 = st.columns(2)
@@ -25,7 +26,7 @@ with col2:
                                    ["Liderança", "Ferramentas Técnicas", "Gestão de Projetos", "Atendimento", "Vendas", "Operação Logística", "Análise de Dados"])
     cv_atual = st.text_area("Cole seu Currículo Atual ou resumo de experiências:", height=150)
 
-# --- LÓGICA DE DEFINIÇÃO DE PLANO E FRAMEWORK ---
+# Definição automática de Plano e Framework
 if salario >= 10000:
     plano, preco, metodo = "EXECUTIVE", "R$ 197,00", "ELITE"
 elif 5000 <= salario < 10000:
@@ -33,58 +34,49 @@ elif 5000 <= salario < 10000:
 else:
     plano, preco, metodo = "START", "R$ 47,00", "STAR"
 
-# Botão Principal de Diagnóstico
+# Botão para disparar o diagnóstico
 if st.button("⚡ GERAR DIAGNÓSTICO DE IMPACTO"):
-    st.session_state.diagnostico_gerado = True
+    st.session_state.mostrar_diagnostico = True
 
-# --- CAMADA 2: DIAGNÓSTICO E PROVAS DE COMPETÊNCIA ---
-if st.session_state.diagnostico_gerado:
+# --- CAMADA 2: DIAGNÓSTICO E FORMULÁRIO DE COMPETÊNCIAS ---
+if st.session_state.mostrar_diagnostico:
     st.markdown("---")
     st.markdown(f"### 🎯 Diagnóstico Estratégico: Plano **{plano}**")
     
     col_diag1, col_diag2 = st.columns([2, 1])
     
     with col_diag1:
-        st.error(f"⚠️ **URGÊNCIA:** O mercado para salários de R$ {salario} não aceita currículos genéricos. "
-                 f"Para ser aprovado, você precisa do método **{metodo}**.")
-        st.info(f"✅ **Estratégia:** Reestruturaremos seu perfil de {graduacao} focando em **{', '.join(exp_possuida)}** "
-                f"para passar nos filtros de IA (ATS) dos recrutadores.")
+        st.error(f"⚠️ **URGÊNCIA:** Vagas de R$ {salario} exigem o método **{metodo}**. Seu modelo atual corre risco de descarte.")
+        st.info(f"✅ **Estratégia:** Reestruturaremos seu perfil focado em **{', '.join(exp_possuida)}** para vencer os filtros ATS.")
     
     with col_diag2:
         st.metric("Aderência Atual", "35%", "-65% de GAP")
-        st.write("Seu currículo atual está focado em 'tarefas'. Vamos transformá-lo em 'resultados'.")
 
     st.markdown("---")
     
-    # --- FORMULÁRIO DE PROVAS DE COMPETÊNCIA (O CORAÇÃO DO MIX) ---
+    # --- FORMULÁRIO DE PROVAS DE COMPETÊNCIA ---
     st.subheader("🛠️ Provas de Competência (Ouro para a IA)")
-    st.write("Responda abaixo para que nossa IA insira as informações que os recrutadores *realmente* querem encontrar.")
+    st.write("Insira informações reais para que a IA gere os argumentos que os recrutadores buscam.")
     
+    # Usamos o formulário aqui
     with st.form("form_competencias"):
         c1, c2 = st.columns(2)
         with c1:
-            tempo_exp = st.selectbox("Quanto tempo de experiência possui nessa área específica?", 
-                                    ["Nenhuma / Transição", "Menos de 1 ano", "1 a 3 anos", "3 a 5 anos", "Mais de 5 anos"])
-            resultado_impacto = st.text_area("Qual foi seu maior resultado real? (Ex: Atendi 50 clientes/dia, economizei 10% de material, bati meta X)",
-                                            placeholder="Use números e fatos!")
+            tempo_exp = st.selectbox("Tempo de experiência na função:", 
+                                    ["Iniciante", "1-3 anos", "3-5 anos", "5-10 anos", "10+ anos"])
+            resultado_impacto = st.text_area("Seu maior resultado real (Números, metas, elogios):", placeholder="Ex: Aumentei a produção em 15%...")
         with c2:
-            ferramentas = st.text_input("Quais ferramentas/softwares você usou para gerar esse resultado?",
-                                        placeholder="Ex: Excel, Python, SAP, CRM, Máquinas Industriais...")
-            desafio_superado = st.text_area("Descreva um problema difícil que você resolveu:",
-                                            placeholder="Ex: O sistema caiu e eu recuperei manualmente...")
+            ferramentas = st.text_input("Ferramentas/Softwares usados:", placeholder="Ex: Excel, Python, SAP...")
+            desafio_superado = st.text_area("Um problema difícil que você resolveu:", placeholder="Como você agiu sob pressão?")
 
-        # Seção Bônus para Salários Altos
+        # Seção Executiva condicional
         if salario >= 8000:
             st.markdown("**🎖️ Detalhes de Liderança e ROI**")
-            lideranca = st.text_input("Tamanho da equipe liderada ou orçamento gerenciado (se houver):")
+            lideranca = st.text_input("Tamanho da equipe ou orçamento gerenciado:")
 
-        # --- CAMADA 3: FECHAMENTO E PAGAMENTO ---
         st.markdown("### 🔓 Concluir Engenharia de Carreira")
-        st.write(f"Ao clicar abaixo, nossa IA processará o método **{metodo}** para gerar seu novo Currículo e Carta de Apresentação.")
-        
         botao_pagar = st.form_submit_button(f"PAGAR {preco} E GERAR CURRÍCULO {plano}")
 
         if botao_pagar:
-            st.toast("Processando Pagamento...", icon="💰")
-            st.success(f"Pagamento Identificado! Gerando currículo {plano} com método {metodo}... Aguarde.")
-            # Aqui entraria a chamada da API do Gemini enviando todas as variáveis coletadas
+            st.success(f"💳 Pagamento Identificado! Aplicando método {metodo}... Seu currículo está sendo gerado.")
+            # Aqui você conectaria o seu prompt final para a IA
