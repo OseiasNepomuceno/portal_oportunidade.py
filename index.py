@@ -46,10 +46,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÃO DA IA (ATUALIZADA COM MODELO LLAMA 3.1) ---
+# --- FUNÇÃO DA IA (INTEGRAÇÃO COM GROQ/LLAMA 3.1) ---
 def estruturar_curriculo_ia(texto_antigo, novas_infos, vaga_objetivo="Geral"):
     try:
-        # 1. Recupera a chave da Groq nos Secrets
         api_key = st.secrets.get("GROQ_API_KEY")
         if not api_key:
             return "Erro: Chave GROQ_API_KEY não configurada nos Secrets do Streamlit."
@@ -69,7 +68,6 @@ def estruturar_curriculo_ia(texto_antigo, novas_infos, vaga_objetivo="Geral"):
         - Retorne apenas o texto reestruturado do currículo.
         """
         
-        # Chamada ao modelo Llama 3.1 (Atualizado para evitar erro de descontinuação)
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
@@ -158,7 +156,9 @@ def main():
             st.markdown("### 📝 Sua Experiência Reestruturada:")
             st.info(st.session_state.cv_preview)
             st.success("✅ Texto gerado com sucesso!")
-            st.link_button("💳 Pagar R$ 29,90 e Baixar PDF Profissional", "https://link-do-seu-checkout.com")
+            
+            # Link do Mercado Pago inserido abaixo
+            st.link_button("💳 Pagar R$ 29,90 e Receber PDF Profissional", "https://mpago.la/2CVmJ4K")
 
     st.divider()
 
@@ -210,9 +210,8 @@ def main():
                 <div class="valor-vaga">💰 {texto_salario}</div>
             </div>
         """, unsafe_allow_html=True)
-        # Exemplo com link do Mercado Pago
-        st.link_button("💳 Pagar R$ 29,90 e Baixar PDF Profissional", "https://mpago.la/1tcXdoE")
-             
+        st.link_button(f"🚀 Ver detalhes e Candidatar-se", vaga.get('Link_Inscrição', '#'), key=f"btn_{i}")
+        st.write("")
 
 if __name__ == "__main__":
     main()
