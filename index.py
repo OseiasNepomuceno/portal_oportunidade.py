@@ -44,18 +44,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÃO DE CARREGAMENTO (AGORA APENAS PLANILHA) ---
+# --- FUNÇÃO DE CARREGAMENTO ---
 
-@st.cache_data(ttl=0) # Altere de 600 para 0
+@st.cache_data(ttl=0) # TTL=0 garante que os dados novos do minerador apareçam no F5
 def carregar_vagas_acumuladas():
     try:
-        # Conecta apenas à planilha que o seu minerador está alimentando
+        # Conecta à planilha via st.connection
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read()
         df = df.dropna(how="all")
         
-        # Garante que as colunas essenciais existam e filtra apenas ativas
+        # --- FILTRO DE SEGURANÇA E STATUS ---
         if not df.empty and 'Status' in df.columns:
+            # Filtra apenas as vagas que o robô (minerador_vagas_brazil.py) marcou como 'Ativa'
             df = df[df['Status'].str.lower() == 'ativa']
             
         return df
@@ -63,71 +64,67 @@ def carregar_vagas_acumuladas():
         st.error(f"Erro ao conectar com a base de dados: {e}")
         return pd.DataFrame()
 
-# --- INTERFACE ---
+# --- INTERFACE PRINCIPAL ---
 def main():
     st.title("💼 Portal Nacional de Oportunidades")
     
-    # Agora o portal lê o histórico acumulado pelo minerador
+    # Carregamento dos dados
     df_vagas = carregar_vagas_acumuladas()
 
     if df_vagas.empty:
         st.info("Estamos atualizando nossa base com novas oportunidades. Volte em instantes!")
         return
 
-    # --- LÓGICA DE MÉTRICAS REAIS ---
+    # --- MÉTRICAS ---
     total_vagas = len(df_vagas)
     
-    # Calcula vagas captadas nas últimas 24h (se a coluna Data_Captura existir)
     vagas_hoje = 0
     if 'Data_Captura' in df_vagas.columns:
         try:
             hoje_str = datetime.now().strftime("%Y-%m-%d")
             vagas_hoje = len(df_vagas[df_vagas['Data_Captura'] == hoje_str])
         except:
-            vagas_hoje = 30 # fallback caso a data falte
+            vagas_hoje = 0
 
     col_m1, col_m2, col_m3 = st.columns([1, 1, 1.5])
     
     with col_m1:
         st.metric("Oportunidades Ativas", f"{total_vagas}")
     with col_m2:
-        st.metric("Captadas Hoje", f"+{vagas_hoje}", delta_color="normal")
+        st.metric("Captadas Hoje", f"+{vagas_hoje}")
     with col_m3:
         st.markdown(f"""
             <div style="background-color: #e8f5e9; padding: 10px; border-radius: 10px; border: 1px solid #c8e6c9;">
                 <p style="margin:0; color: #2e7d32; font-weight: bold;">📢 Compartilhe e ajude um amigo!</p>
-                <a href="https://wa.me/?text=Encontrei%20mais%20de%20{total_vagas}%20vagas%20no%20Portal%20Nacional%20de%20Oportunidades!%20Confira%20aqui:" target="_blank" style="text-decoration:none; color: #1b5e20; font-size: 14px;">👉 Enviar para o WhatsApp</a>
+                <a href="https://wa.me/?text=Confira%20essas%20vagas%20no%20Portal%20Nacional!" target="_blank" style="text-decoration:none; color: #1b5e20; font-size: 14px;">👉 Enviar para o WhatsApp</a>
             </div>
         """, unsafe_allow_html=True)
 
     st.markdown(f"""
         <div class="metric-container">
             <h4 style="margin:0; color: #0d47a1;">🚀 Uma dessas {total_vagas} vagas pode ser a sua!</h4>
-            <p style="margin:5px 0 0 0; color: #1565c0;">Mantemos um histórico de 30 dias de oportunidades para você não perder nada.</p>
         </div>
     """, unsafe_allow_html=True)
 
-    # --- FILTROS LATERAIS ---
+    # --- FILTROS ---
     st.sidebar.header("🔍 Filtros de Busca")
-    busca = st.sidebar.text_input("Cargo, Empresa ou Palavra-chave:")
+    busca = st.sidebar.text_input("Cargo ou Empresa:")
     
-    # Filtro de UF dinâmico
+    # UF Dinâmico
     uf_lista = ["Brasil (Todos)"]
     if 'UF' in df_vagas.columns:
-        ufs = sorted(list(set([str(u).strip().upper() for u in df_vagas['UF'].unique() if pd.notna(u) and len(str(u)) <= 2])))
+        ufs = sorted(list(set([str(u).strip().upper() for u in df_vagas['UF'].unique() if pd.notna(u)])))
         uf_lista += ufs
     
     uf_sel = st.sidebar.selectbox("Estado (UF):", uf_lista)
     
+    # Modalidade Dinâmica
     tipo_sel = "Todas"
     if 'Tipo' in df_vagas.columns:
         tipos = ["Todas"] + sorted(list(df_vagas['Tipo'].unique()))
         tipo_sel = st.sidebar.selectbox("Modalidade:", tipos)
 
-    st.sidebar.divider()
-    st.sidebar.info("Aumentamos nosso banco de dados! Agora você visualiza vagas acumuladas dos últimos 30 dias.")
-
-    # --- LÓGICA DE FILTRO ---
+    # --- APLICAÇÃO DOS FILTROS ---
     df_f = df_vagas.copy()
     if busca: 
         df_f = df_f[df_f['Título'].str.contains(busca, case=False, na=False) | 
@@ -139,10 +136,9 @@ def main():
 
     st.write(f"Exibindo **{len(df_f)}** resultados.")
 
-    # --- EXIBIÇÃO DOS CARDS ---
+    # --- RENDERIZAÇÃO DAS VAGAS ---
     for i, vaga in df_f.iterrows():
         try:
-            # Tratamento de salário (Adzuna traz números, Google traz texto)
             sal = vaga.get('Salário', 0)
             texto_salario = f"R$ {float(sal):,.2f}" if float(sal) > 0 else "A combinar"
         except:
