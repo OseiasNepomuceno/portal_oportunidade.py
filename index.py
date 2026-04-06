@@ -95,6 +95,13 @@ def carregar_vagas_acumuladas():
 
 # --- INTERFACE PRINCIPAL ---
 def main():
+    # --- LOGOTIPO NO MENU LATERAL ---
+    try:
+        st.sidebar.image("Logo Portal Nacional de Oportunidade.png", use_container_width=True)
+    except:
+        # Se o arquivo não for encontrado, ele apenas ignora para não quebrar o app
+        pass
+
     if 'cv_data' not in st.session_state: st.session_state.cv_data = None
     if 'carta_data' not in st.session_state: st.session_state.carta_data = None
 
