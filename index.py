@@ -85,7 +85,7 @@ def main():
 
     # --- CONFIGURAÇÃO DO LINK DE COMPARTILHAMENTO ---
     # COLOQUE O LINK DO SEU SITE ABAIXO:
-    url_do_site = "https://core-essence-portal.streamlit.app" 
+    url_do_site = "https://oportunidade.streamlit.app/" 
     texto_share = f"🚀 Encontrei {total_vagas} vagas ativas no Portal Nacional de Oportunidades! Confira aqui: {url_do_site}"
     link_wa = f"https://wa.me/?text={urllib.parse.quote(texto_share)}"
 
