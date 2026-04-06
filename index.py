@@ -2,10 +2,18 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from streamlit_gsheets import GSheetsConnection
-import urllib.parse  # Biblioteca para formatar o link do WhatsApp
+import urllib.parse
+import google.generativeai as genai # Importação da IA
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Portal Nacional de Oportunidades", page_icon="💼", layout="wide")
+
+# --- CONFIGURAÇÃO DA IA ---
+# Certifique-se de adicionar GEMINI_API_KEY aos segredos do Streamlit
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+except:
+    pass # Caso ainda não tenha configurado o Secret, o app não quebra
 
 # --- ESTILIZAÇÃO CUSTOMIZADA (CSS) ---
 st.markdown("""
@@ -45,18 +53,37 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÃO DE CARREGAMENTO ---
+# --- FUNÇÃO DA IA (PASSO 3 - LÓGICA) ---
+def estruturar_curriculo_ia(texto_antigo, novas_infos, vaga_objetivo="Geral"):
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"""
+        Atue como um Especialista em Recrutamento e Seleção sênior, mestre nos frameworks STAR, WHO e ELITE.
+        TAREFA: Reescrever as experiências profissionais e educacionais baseando-se nos dados abaixo.
+        
+        DADOS DO CURRÍCULO ATUAL: {texto_antigo}
+        NOVAS ATUALIZAÇÕES: {novas_infos}
+        VAGA DE INTERESSE: {vaga_objetivo}
+        
+        REGRAS:
+        1. Framework STAR: Foco em Ação e Resultado (números, %).
+        2. Verbos de Ação: Inicie com verbos fortes (Otimizei, Desenvolvi).
+        3. Formate a saída de forma limpa e profissional.
+        """
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Erro ao processar com IA: {e}"
 
+# --- FUNÇÃO DE CARREGAMENTO ---
 @st.cache_data(ttl=0) 
 def carregar_vagas_acumuladas():
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read()
         df = df.dropna(how="all")
-        
         if not df.empty and 'Status' in df.columns:
             df = df[df['Status'].str.lower() == 'ativa']
-            
         return df
     except Exception as e:
         st.error(f"Erro ao conectar com a base de dados: {e}")
@@ -74,7 +101,6 @@ def main():
 
     # --- MÉTRICAS ---
     total_vagas = len(df_vagas)
-    
     vagas_hoje = 0
     if 'Data_Captura' in df_vagas.columns:
         try:
@@ -83,14 +109,11 @@ def main():
         except:
             vagas_hoje = 0
 
-    # --- CONFIGURAÇÃO DO LINK DE COMPARTILHAMENTO ---
-    # COLOQUE O LINK DO SEU SITE ABAIXO:
     url_do_site = "https://oportunidade.streamlit.app/" 
     texto_share = f"🚀 Encontrei {total_vagas} vagas ativas no Portal Nacional de Oportunidades! Confira aqui: {url_do_site}"
     link_wa = f"https://wa.me/?text={urllib.parse.quote(texto_share)}"
 
     col_m1, col_m2, col_m3 = st.columns([1, 1, 1.5])
-    
     with col_m1:
         st.metric("Oportunidades Ativas", f"{total_vagas}")
     with col_m2:
@@ -108,6 +131,34 @@ def main():
             <h4 style="margin:0; color: #0d47a1;">🚀 Uma dessas {total_vagas} vagas pode ser a sua!</h4>
         </div>
     """, unsafe_allow_html=True)
+
+    # --- PASSO 3: INTERFACE DA IA DE CURRÍCULO ---
+    st.divider()
+    st.subheader("✨ Upgrade de Currículo com IA")
+    with st.expander("Clique aqui para atualizar seu currículo com Frameworks Avançados (STAR/WHO)"):
+        st.write("Transforme seu currículo comum em um perfil focado em resultados.")
+        
+        col_cv1, col_cv2 = st.columns(2)
+        with col_cv1:
+            curriculo_texto = st.text_area("Cole seu currículo atual aqui:", height=200)
+        with col_cv2:
+            novas_insercoes = st.text_area("Novas informações (Cursos, Promoções, Conquistas):", height=200)
+        
+        vaga_alvo = st.text_input("Cargo ou link da vaga que deseja conquistar:")
+
+        if st.button("🚀 Gerar Prévia do Novo Currículo"):
+            if curriculo_texto:
+                with st.spinner("Nossa IA está reestruturando sua carreira..."):
+                    texto_final = estruturar_curriculo_ia(curriculo_texto, novas_insercoes, vaga_alvo)
+                    st.markdown("### 📝 Sua Experiência Reestruturada:")
+                    st.info(texto_final)
+                    
+                    st.success("✅ Texto gerado com sucesso!")
+                    st.warning("💳 Deseja baixar o PDF formatado profissionalmente?")
+                    st.link_button("💳 Pagar R$ 29,90 e Gerar PDF Profissional", "https://link-do-seu-checkout.com")
+            else:
+                st.error("Por favor, cole seu currículo atual para começar.")
+    st.divider()
 
     # --- FILTROS ---
     st.sidebar.header("🔍 Filtros de Busca")
