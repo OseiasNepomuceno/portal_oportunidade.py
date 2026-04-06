@@ -145,19 +145,21 @@ def main():
         
         vaga_alvo = st.text_input("Vaga ou cargo objetivo:", key="txt_vaga")
 
-        if st.button("🚀 Gerar Prévia do Novo Currículo"):
+        if st.button("🚀 Gerar Novo Currículo Profissional"):
             if curriculo_texto:
                 with st.spinner("⏳ IA reestruturando sua carreira com Llama 3.1..."):
+                    # O texto é gerado e salvo no session_state, mas não exibido
                     st.session_state.cv_preview = estruturar_curriculo_ia(curriculo_texto, novas_insercoes, vaga_alvo)
             else:
                 st.error("Por favor, cole seu currículo atual primeiro.")
 
         if st.session_state.cv_preview:
-            st.markdown("### 📝 Sua Experiência Reestruturada:")
-            st.info(st.session_state.cv_preview)
-            st.success("✅ Texto gerado com sucesso!")
+            # Ocultamos o texto da IA para evitar "copiar e colar" sem pagar
+            st.success("✅ Currículo reestruturado com sucesso pela nossa IA!")
+            st.markdown("### 📥 Próximo Passo:")
+            st.write("Clique no botão abaixo para concluir o pagamento e receber seu currículo formatado em PDF profissional.")
             
-            # Link do Mercado Pago inserido abaixo
+            # Link do Mercado Pago
             st.link_button("💳 Pagar R$ 29,90 e Receber PDF Profissional", "https://mpago.la/2CVmJ4K")
 
     st.divider()
