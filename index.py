@@ -46,7 +46,7 @@ st.markdown("""
 
 # --- FUNÇÃO DE CARREGAMENTO (AGORA APENAS PLANILHA) ---
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=0) # Altere de 600 para 0
 def carregar_vagas_acumuladas():
     try:
         # Conecta apenas à planilha que o seu minerador está alimentando
