@@ -55,7 +55,7 @@ def estruturar_curriculo_ia(texto_antigo, novas_infos, vaga_objetivo="Geral"):
             return "Erro: Chave GEMINI_API_KEY não configurada nos Secrets."
             
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel(model_name='gemini-1.5-flash')
         
         prompt = f"""
         Atue como um Especialista em Recrutamento sênior, mestre nos frameworks STAR, WHO e ELITE.
