@@ -5,3 +5,4 @@ gspread
 oauth2client
 beautifulsoup4
 st-gsheets-connection
+pip install -q -U google-generativeai
