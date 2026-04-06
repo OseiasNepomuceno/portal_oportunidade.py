@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 import urllib.parse
-import google.generativeai as genai
+from groq import Groq  # Substituído: Sai Gemini, entra Groq
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Portal Nacional de Oportunidades", page_icon="💼", layout="wide")
@@ -46,40 +46,40 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÃO DA IA (CORREÇÃO DEFINITIVA) ---
+# --- FUNÇÃO DA IA (NOVA INTEGRAÇÃO COM GROQ/LLAMA 3) ---
 def estruturar_curriculo_ia(texto_antigo, novas_infos, vaga_objetivo="Geral"):
     try:
-        # 1. Recupera a chave de forma segura
-        api_key = st.secrets.get("GEMINI_API_KEY")
+        # 1. Recupera a chave da Groq nos Secrets
+        api_key = st.secrets.get("GROQ_API_KEY")
         if not api_key:
-            return "Erro: Chave GEMINI_API_KEY não configurada nos Secrets do Streamlit."
+            return "Erro: Chave GROQ_API_KEY não configurada nos Secrets do Streamlit."
             
-        genai.configure(api_key=api_key)
-        
-        # 2. Lógica de Fallback para evitar erro 404
-        # Tentamos o Flash primeiro, se falhar, usamos o Pro
-        try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            # Teste de fumaça (smoke test) para validar o modelo
-            model.generate_content("test", generation_config={"max_output_tokens": 1})
-        except Exception:
-            model = genai.GenerativeModel('gemini-pro')
+        client = Groq(api_key=api_key)
         
         prompt = f"""
         Atue como um Especialista em Recrutamento sênior, mestre nos frameworks STAR, WHO e ELITE.
-        TAREFA: Reescrever as experiências abaixo focando em resultados numéricos e verbos de ação.
+        TAREFA: Reescrever as experiências profissionais abaixo focando em resultados numéricos e verbos de ação.
         
         DADOS ATUAIS: {texto_antigo}
         ATUALIZAÇÕES: {novas_infos}
         VAGA ALVO: {vaga_objetivo}
         
-        REGRAS: Use tópicos, negrito e linguagem profissional de alto impacto. Retorne apenas o currículo formatado.
+        REGRAS: 
+        - Use tópicos, negrito e linguagem profissional de alto impacto. 
+        - Retorne apenas o texto reestruturado do currículo.
         """
         
-        response = model.generate_content(prompt)
-        return response.text
+        # Chamada ao modelo Llama 3 (extremamente rápido)
+        completion = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=2048,
+        )
+        
+        return completion.choices[0].message.content
     except Exception as e:
-        return f"Erro técnico na IA: {str(e)}"
+        return f"Erro técnico na Groq: {str(e)}"
 
 # --- FUNÇÃO DE CARREGAMENTO ---
 @st.cache_data(ttl=0) 
@@ -97,7 +97,6 @@ def carregar_vagas_acumuladas():
 
 # --- INTERFACE PRINCIPAL ---
 def main():
-    # Inicializa o estado para persistência da prévia
     if 'cv_preview' not in st.session_state:
         st.session_state.cv_preview = ""
 
@@ -138,7 +137,7 @@ def main():
 
     # --- INTERFACE DA IA ---
     st.divider()
-    st.subheader("✨ Upgrade de Currículo com IA")
+    st.subheader("✨ Upgrade de Currículo com IA (Powered by Groq)")
     with st.expander("Clique aqui para atualizar seu currículo com Frameworks Avançados", expanded=True):
         col_cv1, col_cv2 = st.columns(2)
         with col_cv1:
@@ -150,7 +149,7 @@ def main():
 
         if st.button("🚀 Gerar Prévia do Novo Currículo"):
             if curriculo_texto:
-                with st.spinner("⏳ IA reestruturando sua carreira..."):
+                with st.spinner("⏳ Groq reestruturando sua carreira em tempo recorde..."):
                     st.session_state.cv_preview = estruturar_curriculo_ia(curriculo_texto, novas_insercoes, vaga_alvo)
             else:
                 st.error("Por favor, cole seu currículo atual primeiro.")
@@ -179,7 +178,7 @@ def main():
         tipos = ["Todas"] + sorted(list(df_vagas['Tipo'].unique()))
         tipo_sel = st.sidebar.selectbox("Modalidade:", tipos)
 
-    # --- FILTRAGEM E RENDERIZAÇÃO ---
+    # --- FILTRAGEM ---
     df_f = df_vagas.copy()
     if busca: 
         df_f = df_f[df_f['Título'].str.contains(busca, case=False, na=False) | 
@@ -191,6 +190,7 @@ def main():
 
     st.write(f"Exibindo **{len(df_f)}** resultados.")
 
+    # --- LISTAGEM DE VAGAS ---
     for i, vaga in df_f.iterrows():
         try:
             sal = vaga.get('Salário', 0)
