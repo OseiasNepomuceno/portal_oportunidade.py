@@ -118,4 +118,100 @@ def main():
         except:
             vagas_hoje = 0
 
-    url_do_
+    url_do_site = "https://oportunidade.streamlit.app/" 
+    texto_share = f"🚀 Encontrei {total_vagas} vagas ativas no Portal! Confira: {url_do_site}"
+    link_wa = f"https://wa.me/?text={urllib.parse.quote(texto_share)}"
+
+    col_m1, col_m2, col_m3 = st.columns([1, 1, 1.5])
+    with col_m1:
+        st.metric("Oportunidades Ativas", f"{total_vagas}")
+    with col_m2:
+        st.metric("Captadas Hoje", f"+{vagas_hoje}")
+    with col_m3:
+        st.markdown(f"""
+            <div style="background-color: #e8f5e9; padding: 10px; border-radius: 10px; border: 1px solid #c8e6c9;">
+                <p style="margin:0; color: #2e7d32; font-weight: bold;">📢 Compartilhe e ajude um amigo!</p>
+                <a href="{link_wa}" target="_blank" style="text-decoration:none; color: #1b5e20; font-size: 14px; font-weight: bold;">👉 Enviar para o WhatsApp</a>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # --- INTERFACE DA IA ---
+    st.divider()
+    st.subheader("✨ Upgrade de Currículo com IA (Powered by Groq)")
+    with st.expander("Clique aqui para atualizar seu currículo com Frameworks Avançados", expanded=True):
+        col_cv1, col_cv2 = st.columns(2)
+        with col_cv1:
+            curriculo_texto = st.text_area("Cole seu currículo atual aqui:", height=200, key="txt_antigo")
+        with col_cv2:
+            novas_insercoes = st.text_area("Novas conquistas ou cursos:", height=200, key="txt_novo")
+        
+        vaga_alvo = st.text_input("Vaga ou cargo objetivo:", key="txt_vaga")
+
+        if st.button("🚀 Gerar Prévia do Novo Currículo"):
+            if curriculo_texto:
+                with st.spinner("⏳ IA reestruturando sua carreira com Llama 3.1..."):
+                    st.session_state.cv_preview = estruturar_curriculo_ia(curriculo_texto, novas_insercoes, vaga_alvo)
+            else:
+                st.error("Por favor, cole seu currículo atual primeiro.")
+
+        if st.session_state.cv_preview:
+            st.markdown("### 📝 Sua Experiência Reestruturada:")
+            st.info(st.session_state.cv_preview)
+            st.success("✅ Texto gerado com sucesso!")
+            st.link_button("💳 Pagar R$ 29,90 e Baixar PDF Profissional", "https://link-do-seu-checkout.com")
+
+    st.divider()
+
+    # --- FILTROS ---
+    st.sidebar.header("🔍 Filtros de Busca")
+    busca = st.sidebar.text_input("Cargo ou Empresa:")
+    
+    uf_lista = ["Brasil (Todos)"]
+    if 'UF' in df_vagas.columns:
+        ufs = sorted(list(set([str(u).strip().upper() for u in df_vagas['UF'].unique() if pd.notna(u)])))
+        uf_lista += ufs
+    
+    uf_sel = st.sidebar.selectbox("Estado (UF):", uf_lista)
+    
+    tipo_sel = "Todas"
+    if 'Tipo' in df_vagas.columns:
+        tipos = ["Todas"] + sorted(list(df_vagas['Tipo'].unique()))
+        tipo_sel = st.sidebar.selectbox("Modalidade:", tipos)
+
+    # --- FILTRAGEM ---
+    df_f = df_vagas.copy()
+    if busca: 
+        df_f = df_f[df_f['Título'].str.contains(busca, case=False, na=False) | 
+                    df_f['Empresa'].str.contains(busca, case=False, na=False)]
+    if uf_sel != "Brasil (Todos)": 
+        df_f = df_f[df_f['UF'] == uf_sel]
+    if tipo_sel != "Todas": 
+        df_f = df_f[df_f['Tipo'] == tipo_sel]
+
+    st.write(f"Exibindo **{len(df_f)}** resultados.")
+
+    # --- LISTAGEM DE VAGAS ---
+    for i, vaga in df_f.iterrows():
+        try:
+            sal = vaga.get('Salário', 0)
+            texto_salario = f"R$ {float(sal):,.2f}" if float(sal) > 0 else "A combinar"
+        except:
+            texto_salario = "A combinar"
+
+        st.markdown(f"""
+            <div class="vaga-card">
+                <div class="titulo-vaga">{vaga.get('Título', 'Vaga')}</div>
+                <div class="empresa-vaga">🏢 {vaga.get('Empresa', 'Confidencial')}</div>
+                <div>
+                    <span class="tag tag-local">📍 {vaga.get('Cidade', 'Brasil')} - {vaga.get('UF', 'BR')}</span>
+                    <span class="tag tag-tipo">💻 {vaga.get('Tipo', 'Presencial')}</span>
+                    <span class="tag tag-fonte">🔗 {vaga.get('Fonte', 'Portal')}</span>
+                </div>
+                <div class="valor-vaga">💰 {texto_salario}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        st.link_button(f"🚀 Ver detalhes e Candidatar-se", vaga.get('Link_Inscrição', '#'), key=f"btn_{i}")
+        st.write("")
+
+if __name__ == "__main__":
+    main()
