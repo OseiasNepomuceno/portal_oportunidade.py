@@ -1,24 +1,31 @@
 name: Minerador Nacional de Vagas
 
+# Configuração de quando o robô deve trabalhar
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
+    - cron: '0 0 * * *' # Roda automaticamente todo dia à meia-noite (UTC)
+  workflow_dispatch:     # Permite que você clique no botão "Run workflow" para testar agora
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # 1. Baixa o seu código do GitHub para o servidor temporário
       - uses: actions/checkout@v3
+
+      # 2. Prepara o ambiente Python
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
+      # 3. Instala as bibliotecas necessárias (gspread é a principal agora)
       - name: Instalar Dependências
         run: pip install pandas requests gspread oauth2client
 
+      # 4. Executa o script minerador passando as chaves de segurança (Secrets)
       - name: Rodar Minerador
         env:
+          # Estas variáveis devem estar configuradas em Settings > Secrets and variables > Actions
           APP_ID: ${{ secrets.APP_ID }}
           APP_KEY: ${{ secrets.APP_KEY }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
