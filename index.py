@@ -151,7 +151,7 @@ def main():
             if st.session_state.cv_data:
                 st.success("✅ Seu Currículo e sua Carta de Apresentação foram gerados com sucesso!")
                 st.markdown("""
-                    **O seu Kit de Aprovação está pronto:**
+                    **O seu Kit Profissional está pronto:**
                     * ✅ Currículo otimizado (Frameworks STAR/WHO)
                     * ✅ Carta de Apresentação persuasiva
                 """)
