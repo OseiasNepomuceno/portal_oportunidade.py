@@ -46,31 +46,36 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÃO DA IA (ATUALIZADA) ---
+# --- FUNÇÃO DA IA (CORREÇÃO DEFINITIVA) ---
 def estruturar_curriculo_ia(texto_antigo, novas_infos, vaga_objetivo="Geral"):
     try:
+        # 1. Recupera a chave de forma segura
         api_key = st.secrets.get("GEMINI_API_KEY")
         if not api_key:
-            return "Erro: Chave GEMINI_API_KEY não configurada nos Secrets."
+            return "Erro: Chave GEMINI_API_KEY não configurada nos Secrets do Streamlit."
             
         genai.configure(api_key=api_key)
         
-        # Tentamos o Flash, se falhar usamos o Pro como fallback
+        # 2. Lógica de Fallback para evitar erro 404
+        # Tentamos o Flash primeiro, se falhar, usamos o Pro
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
-        except:
+            # Teste de fumaça (smoke test) para validar o modelo
+            model.generate_content("test", generation_config={"max_output_tokens": 1})
+        except Exception:
             model = genai.GenerativeModel('gemini-pro')
         
         prompt = f"""
-        Atue como um Especialista em Recrutamento sênior, mestre nos frameworks STAR e WHO.
-        REESCREVA as experiências abaixo focando em resultados mensuráveis e impacto.
+        Atue como um Especialista em Recrutamento sênior, mestre nos frameworks STAR, WHO e ELITE.
+        TAREFA: Reescrever as experiências abaixo focando em resultados numéricos e verbos de ação.
         
-        CURRÍCULO ATUAL: {texto_antigo}
+        DADOS ATUAIS: {texto_antigo}
         ATUALIZAÇÕES: {novas_infos}
-        OBJETIVO: {vaga_objetivo}
+        VAGA ALVO: {vaga_objetivo}
         
-        REGRAS: Use tópicos, negrito e linguagem de alto impacto. Retorne apenas o currículo estruturado.
+        REGRAS: Use tópicos, negrito e linguagem profissional de alto impacto. Retorne apenas o currículo formatado.
         """
+        
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
@@ -92,6 +97,7 @@ def carregar_vagas_acumuladas():
 
 # --- INTERFACE PRINCIPAL ---
 def main():
+    # Inicializa o estado para persistência da prévia
     if 'cv_preview' not in st.session_state:
         st.session_state.cv_preview = ""
 
@@ -114,7 +120,7 @@ def main():
             vagas_hoje = 0
 
     url_do_site = "https://oportunidade.streamlit.app/" 
-    texto_share = f"🚀 Encontrei {total_vagas} vagas ativas no Portal Nacional de Oportunidades! Confira aqui: {url_do_site}"
+    texto_share = f"🚀 Encontrei {total_vagas} vagas ativas no Portal! Confira: {url_do_site}"
     link_wa = f"https://wa.me/?text={urllib.parse.quote(texto_share)}"
 
     col_m1, col_m2, col_m3 = st.columns([1, 1, 1.5])
@@ -130,38 +136,30 @@ def main():
             </div>
         """, unsafe_allow_html=True)
 
-    st.markdown(f"""
-        <div class="metric-container">
-            <h4 style="margin:0; color: #0d47a1;">🚀 Uma dessas {total_vagas} vagas pode ser a sua!</h4>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # --- IA DE CURRÍCULO ---
+    # --- INTERFACE DA IA ---
     st.divider()
     st.subheader("✨ Upgrade de Currículo com IA")
     with st.expander("Clique aqui para atualizar seu currículo com Frameworks Avançados", expanded=True):
-        st.write("Destaque-se com um perfil profissional focado em resultados.")
-        
         col_cv1, col_cv2 = st.columns(2)
         with col_cv1:
             curriculo_texto = st.text_area("Cole seu currículo atual aqui:", height=200, key="txt_antigo")
         with col_cv2:
-            novas_insercoes = st.text_area("Cursos, promoções ou novas experiências:", height=200, key="txt_novo")
+            novas_insercoes = st.text_area("Novas conquistas ou cursos:", height=200, key="txt_novo")
         
-        vaga_alvo = st.text_input("Qual cargo você busca?", key="txt_vaga")
+        vaga_alvo = st.text_input("Vaga ou cargo objetivo:", key="txt_vaga")
 
         if st.button("🚀 Gerar Prévia do Novo Currículo"):
             if curriculo_texto:
-                with st.spinner("⏳ IA reestruturando seu perfil..."):
+                with st.spinner("⏳ IA reestruturando sua carreira..."):
                     st.session_state.cv_preview = estruturar_curriculo_ia(curriculo_texto, novas_insercoes, vaga_alvo)
             else:
-                st.error("Por favor, preencha o texto do currículo.")
+                st.error("Por favor, cole seu currículo atual primeiro.")
 
         if st.session_state.cv_preview:
-            st.markdown("### 📝 Prévia do seu novo Currículo:")
+            st.markdown("### 📝 Sua Experiência Reestruturada:")
             st.info(st.session_state.cv_preview)
-            st.warning("💳 Deseja o arquivo PDF pronto para imprimir?")
-            st.link_button("💳 Pagar R$ 29,90 e Baixar PDF", "https://link-do-seu-checkout.com")
+            st.success("✅ Texto gerado com sucesso!")
+            st.link_button("💳 Pagar R$ 29,90 e Baixar PDF Profissional", "https://link-do-seu-checkout.com")
 
     st.divider()
 
@@ -181,7 +179,7 @@ def main():
         tipos = ["Todas"] + sorted(list(df_vagas['Tipo'].unique()))
         tipo_sel = st.sidebar.selectbox("Modalidade:", tipos)
 
-    # --- APLICAÇÃO DOS FILTROS ---
+    # --- FILTRAGEM E RENDERIZAÇÃO ---
     df_f = df_vagas.copy()
     if busca: 
         df_f = df_f[df_f['Título'].str.contains(busca, case=False, na=False) | 
@@ -193,7 +191,6 @@ def main():
 
     st.write(f"Exibindo **{len(df_f)}** resultados.")
 
-    # --- RENDERIZAÇÃO DAS VAGAS ---
     for i, vaga in df_f.iterrows():
         try:
             sal = vaga.get('Salário', 0)
