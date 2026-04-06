@@ -210,8 +210,9 @@ def main():
                 <div class="valor-vaga">💰 {texto_salario}</div>
             </div>
         """, unsafe_allow_html=True)
-        st.link_button(f"🚀 Ver detalhes e Candidatar-se", vaga.get('Link_Inscrição', '#'), key=f"btn_{i}")
-        st.write("")
+        # Exemplo com link do Mercado Pago
+        st.link_button("💳 Pagar R$ 29,90 e Baixar PDF Profissional", "https://mpago.la/1tcXdoE")
+             
 
 if __name__ == "__main__":
     main()
