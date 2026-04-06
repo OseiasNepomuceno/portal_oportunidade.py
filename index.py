@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from streamlit_gsheets import GSheetsConnection
+import urllib.parse  # Biblioteca para formatar o link do WhatsApp
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Portal Nacional de Oportunidades", page_icon="💼", layout="wide")
@@ -46,17 +47,14 @@ st.markdown("""
 
 # --- FUNÇÃO DE CARREGAMENTO ---
 
-@st.cache_data(ttl=0) # TTL=0 garante que os dados novos do minerador apareçam no F5
+@st.cache_data(ttl=0) 
 def carregar_vagas_acumuladas():
     try:
-        # Conecta à planilha via st.connection
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read()
         df = df.dropna(how="all")
         
-        # --- FILTRO DE SEGURANÇA E STATUS ---
         if not df.empty and 'Status' in df.columns:
-            # Filtra apenas as vagas que o robô (minerador_vagas_brazil.py) marcou como 'Ativa'
             df = df[df['Status'].str.lower() == 'ativa']
             
         return df
@@ -68,7 +66,6 @@ def carregar_vagas_acumuladas():
 def main():
     st.title("💼 Portal Nacional de Oportunidades")
     
-    # Carregamento dos dados
     df_vagas = carregar_vagas_acumuladas()
 
     if df_vagas.empty:
@@ -86,6 +83,12 @@ def main():
         except:
             vagas_hoje = 0
 
+    # --- CONFIGURAÇÃO DO LINK DE COMPARTILHAMENTO ---
+    # COLOQUE O LINK DO SEU SITE ABAIXO:
+    url_do_site = "https://core-essence-portal.streamlit.app" 
+    texto_share = f"🚀 Encontrei {total_vagas} vagas ativas no Portal Nacional de Oportunidades! Confira aqui: {url_do_site}"
+    link_wa = f"https://wa.me/?text={urllib.parse.quote(texto_share)}"
+
     col_m1, col_m2, col_m3 = st.columns([1, 1, 1.5])
     
     with col_m1:
@@ -96,7 +99,7 @@ def main():
         st.markdown(f"""
             <div style="background-color: #e8f5e9; padding: 10px; border-radius: 10px; border: 1px solid #c8e6c9;">
                 <p style="margin:0; color: #2e7d32; font-weight: bold;">📢 Compartilhe e ajude um amigo!</p>
-                <a href="https://wa.me/?text=Confira%20essas%20vagas%20no%20Portal%20Nacional!" target="_blank" style="text-decoration:none; color: #1b5e20; font-size: 14px;">👉 Enviar para o WhatsApp</a>
+                <a href="{link_wa}" target="_blank" style="text-decoration:none; color: #1b5e20; font-size: 14px; font-weight: bold;">👉 Enviar para o WhatsApp</a>
             </div>
         """, unsafe_allow_html=True)
 
@@ -110,7 +113,6 @@ def main():
     st.sidebar.header("🔍 Filtros de Busca")
     busca = st.sidebar.text_input("Cargo ou Empresa:")
     
-    # UF Dinâmico
     uf_lista = ["Brasil (Todos)"]
     if 'UF' in df_vagas.columns:
         ufs = sorted(list(set([str(u).strip().upper() for u in df_vagas['UF'].unique() if pd.notna(u)])))
@@ -118,7 +120,6 @@ def main():
     
     uf_sel = st.sidebar.selectbox("Estado (UF):", uf_lista)
     
-    # Modalidade Dinâmica
     tipo_sel = "Todas"
     if 'Tipo' in df_vagas.columns:
         tipos = ["Todas"] + sorted(list(df_vagas['Tipo'].unique()))
