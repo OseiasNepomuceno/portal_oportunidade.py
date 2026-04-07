@@ -1,4 +1,12 @@
 import streamlit as st
+import google.generativeai as genai
+
+# --- CONFIGURAÇÃO DA API (Lendo dos Secrets) ---
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-pro')
+except:
+    st.error("Erro: GEMINI_API_KEY não encontrada nos Secrets do Streamlit.")
 
 # Configuração da Página
 st.set_page_config(page_title="Engenharia de Carreira IA", layout="wide", page_icon="🚀")
@@ -6,122 +14,86 @@ st.set_page_config(page_title="Engenharia de Carreira IA", layout="wide", page_i
 st.title("🚀 Inteligência de Aprovação: O Currículo Irrecusável")
 st.markdown("---")
 
-# --- LÓGICA DE ESTADO (SESSION STATE) ---
+# --- LÓGICA DE ESTADO ---
 if "mostrar_diagnostico" not in st.session_state:
     st.session_state.mostrar_diagnostico = False
 
-# --- CAMADA 1: CAPTAÇÃO DE DADOS INICIAIS ---
+# --- CAMADA 1: INPUTS ---
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("📋 Dados da Oportunidade")
-    vaga_link = st.text_area("Cole a Descrição da Vaga ou os Requisitos principais:", height=150)
-    salario = st.number_input("Pretensão Salarial Aproximada (R$):", min_value=1500, step=500, value=3000)
-    graduacao = st.selectbox("Sua Graduação Atual:", ["Ensino Médio", "Técnico", "Graduação", "Pós/MBA", "Mestrado/Doc"])
+    vaga_link = st.text_area("Descrição da Vaga/Requisitos:", height=150)
+    salario = st.number_input("Pretensão Salarial (R$):", min_value=1500, step=500, value=3000)
+    graduacao = st.selectbox("Sua Graduação:", ["Ensino Médio", "Técnico", "Graduação", "Pós/MBA", "Mestrado/Doc"])
 
 with col2:
     st.subheader("👤 Seu Perfil Atual")
-    exp_possuida = st.multiselect("Selecione o que você já domina ou a vaga exige:", 
-                                   ["Liderança", "Ferramentas Técnicas", "Gestão de Projetos", "Atendimento", "Vendas", "Operação Logística", "Análise de Dados"])
-    cv_atual = st.text_area("Cole seu Currículo Atual ou resumo de experiências:", height=150)
+    exp_possuida = st.multiselect("O que você domina:", 
+                                   ["Liderança", "Ferramentas Técnicas", "Gestão de Projetos", "Atendimento", "Vendas", "Dados"])
+    cv_atual = st.text_area("Cole seu Currículo Atual:", height=150)
 
-# Definição Interna de Plano e Métodos (Back-end)
+# Lógica Interna
 if salario >= 10000:
-    plano, preco = "EXECUTIVE", "R$ 197,00"
-    nomenclatura_metodo = "Protocolo de Liderança e ROI Executivo"
-    framework_interno = "ELITE"
+    plano, preco, metodo_nome, framework = "EXECUTIVE", "R$ 197,00", "Protocolo de ROI Executivo", "ELITE"
 elif 5000 <= salario < 10000:
-    plano, preco = "PRO", "R$ 97,00"
-    nomenclatura_metodo = "Método de Alta Performance e Resultados Técnicos"
-    framework_interno = "WHO/CAR"
+    plano, preco, metodo_nome, framework = "PRO", "R$ 97,00", "Método de Alta Performance", "WHO/CAR"
 else:
-    plano, preco = "START", "R$ 47,00"
-    nomenclatura_metodo = "Engenharia de Competências e Impacto Imediato"
-    framework_interno = "STAR"
+    plano, preco, metodo_nome, framework = "START", "R$ 47,00", "Engenharia de Impacto Imediato", "STAR"
 
-# Botão para disparar o diagnóstico
 if st.button("⚡ GERAR DIAGNÓSTICO DE IMPACTO"):
     st.session_state.mostrar_diagnostico = True
 
-# --- CAMADA 2: DIAGNÓSTICO E FORMULÁRIO DE COMPETÊNCIAS ---
+# --- CAMADA 2: DIAGNÓSTICO E FORMULÁRIO ---
 if st.session_state.mostrar_diagnostico:
     st.markdown("---")
-    st.markdown(f"### 🎯 Diagnóstico Estratégico: Nível **{plano}**")
-    
-    col_diag1, col_diag2 = st.columns([2, 1])
-    
-    with col_diag1:
-        st.error(f"⚠️ **ALERTA DE URGÊNCIA:** Vagas de R$ {salario} exigem um **{nomenclatura_metodo}**. Seu modelo de currículo atual possui falhas estruturais que levam ao descarte automático pelos robôs de seleção (ATS).")
-        st.info(f"✅ **Estratégia de Aprovação:** Nossa IA irá reconfigurar seu histórico profissional focando em **{', '.join(exp_possuida)}** para que você se destaque entre os 5% melhores candidatos.")
-    
-    with col_diag2:
-        st.metric("Índice de Aderência", "28%", "-72% de GAP detectado")
-        st.caption("Baseado nos requisitos da vaga informada.")
-
-    st.markdown("---")
-    
-    # --- FORMULÁRIO DE PROVAS DE COMPETÊNCIA ---
-    st.subheader("🛠️ Provas de Competência (Ouro para a IA)")
-    st.write("Forneça os dados reais abaixo. Nossa tecnologia de IA converterá esses fatos em argumentos de venda imbatíveis.")
+    st.error(f"⚠️ **URGÊNCIA:** Vagas de R$ {salario} exigem um **{metodo_nome}**. Seu modelo atual corre risco de descarte.")
     
     with st.form("form_competencias"):
+        st.subheader("🛠️ Provas de Competência")
         c1, c2 = st.columns(2)
         with c1:
-            tempo_exp = st.selectbox("Tempo de experiência na função:", 
-                                    ["Iniciante/Transição", "1-3 anos", "3-5 anos", "5-10 anos", "10+ anos"])
-            resultado_impacto = st.text_area("Cite um resultado ou meta batida (Use números, ex: 20%, R$ 10k, 50 atendimentos):", 
-                                            placeholder="Ex: Reduzi o tempo de espera em 15%...")
+            tempo_exp = st.selectbox("Experiência na função:", ["Iniciante", "1-3 anos", "3-5 anos", "5-10 anos", "10+ anos"])
+            resultado_impacto = st.text_area("Seu maior resultado real (Números/Metas):")
         with c2:
-            ferramentas = st.text_input("Ferramentas ou metodologias que domina:", placeholder="Ex: Excel, Python, SAP, Metodologia Ágil...")
-            desafio_superado = st.text_area("Descreva um problema complexo que você resolveu com sucesso:", 
-                                            placeholder="Como você agiu para evitar um prejuízo ou erro?")
+            ferramentas = st.text_input("Ferramentas que domina:")
+            desafio_superado = st.text_area("Um problema complexo que resolveu:")
 
-        if salario >= 8000:
-            st.markdown("**🎖️ Indicadores de Gestão e Impacto Financeiro**")
-            lideranca = st.text_input("Qual o tamanho da equipe ou volume financeiro que você gerenciava?")
-
-        st.markdown("### 🔓 Liberar Engenharia de Carreira")
-        st.write(f"Ao confirmar, nossa IA aplicará o **{nomenclatura_metodo}** para gerar seu novo documento.")
-        
-        botao_pagar = st.form_submit_button(f"PAGAR {preco} E CONQUISTAR MINHA VAGA")
+        botao_pagar = st.form_submit_button(f"PAGAR {preco} E GERAR DOCUMENTOS")
 
         if botao_pagar:
-            # --- CAMADA 3: O GERADOR FINAL (IMPLEMENTAÇÃO) ---
-            st.success(f"💳 Pagamento Identificado! Aplicando {nomenclatura_metodo}...")
-            
-            # Construção do Prompt Agressivo para a IA
-            prompt_final = f"""
-            ATUE COMO UM HEADHUNTER SÊNIOR E ESTRATEGISTA DE CARREIRA.
-            OBJETIVO: Gerar Currículo e Carta de Apresentação Agressiva para vaga de R$ {salario}.
-            MÉTODO INTERNO: {framework_interno}
-            
-            DADOS DA VAGA: {vaga_link}
-            PERFIL ATUAL: {cv_atual}
-            PROVAS DE IMPACTO: 
-            - Resultado: {resultado_impacto}
-            - Ferramentas: {ferramentas}
-            - Desafio: {desafio_superado}
-            
-            ESTRUTURA DE SAÍDA:
-            1. Headline Profissional de Alto Impacto.
-            2. Experiências reescritas focando em ROI e RESULTADOS NUMÉRICOS.
-            3. Carta de Apresentação 'Ataque': Identifique a dor da vaga e mostre que o candidato é a única solução.
-            """
-            
-            st.markdown("---")
-            st.subheader("📄 Seus Documentos de Alta Performance")
-            
-            # Tabs para organizar a entrega final
-            tab_cv, tab_carta = st.tabs(["📄 Currículo Otimizado", "✉️ Carta de Apresentação"])
-            
-            with tab_cv:
-                st.info(f"Este documento foi estruturado com o {nomenclatura_metodo}.")
-                st.code(f"GERANDO CONTEÚDO PARA: {graduacao}...\n(Aqui a IA retornaria o texto formatado baseado no {framework_interno})", language="text")
-                st.button("📥 Baixar Currículo em PDF (Simulação)")
-
-            with tab_carta:
-                st.warning("Esta carta foi desenhada para 'atacar' os requisitos da vaga.")
-                st.code("GERANDO CARTA DE APRESENTAÇÃO ESTRATÉGICA...", language="text")
-                st.button("📥 Baixar Carta em PDF (Simulação)")
-            
-            st.balloons()
+            with st.spinner(f"Aplicando {metodo_nome} via Inteligência Artificial..."):
+                # --- O PROMPT AGRESSIVO ---
+                prompt_final = f"""
+                ATUE COMO UM HEADHUNTER SÊNIOR. 
+                Gere um Currículo e uma Carta de Apresentação Agressiva.
+                MÉTODO: {framework} (Foco em resultados e palavras-chave ATS).
+                VAGA: {vaga_link}
+                SALÁRIO ALVO: R$ {salario}
+                DADOS DO CANDIDATO: {cv_atual}
+                RESULTADO CHAVE: {resultado_impacto} usando {ferramentas}.
+                DESAFIO VENCIDO: {desafio_superado}
+                
+                RESPOSTA: Formate claramente com títulos 'CURRÍCULO' e 'CARTA DE APRESENTAÇÃO'.
+                """
+                
+                try:
+                    response = model.generate_content(prompt_final)
+                    texto_gerado = response.text
+                    
+                    st.balloons()
+                    st.success("✅ Documentos Gerados com Sucesso!")
+                    
+                    tab1, tab2 = st.tabs(["📄 Currículo Estruturado", "✉️ Carta de Ataque"])
+                    
+                    # Dividindo a resposta (ajuste conforme o retorno da IA)
+                    with tab1:
+                        st.markdown(texto_gerado.split('CARTA DE APRESENTAÇÃO')[0])
+                    with tab2:
+                        if 'CARTA DE APRESENTAÇÃO' in texto_gerado:
+                            st.markdown(texto_gerado.split('CARTA DE APRESENTAÇÃO')[1])
+                        else:
+                            st.markdown(texto_gerado)
+                            
+                except Exception as e:
+                    st.error(f"Erro na geração: {e}")
