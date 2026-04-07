@@ -37,7 +37,7 @@ def gerar_conteudo_ia(prompt):
 
 # --- FUNÇÕES DE APOIO ---
 def notificar_venda_planilha(dados):
-    WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyHJggBgmsF8DI6F7SjV9gM0uQ6XZpq6JBAVkWqR_Lc-KmBVzXYZqk9rFxYAtP6Y6V0ow/exec" 
+    WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwNf3VrNaXJ7Tn2sohVG0XxGk_Ia94UIKP7Aq1FeXRHIWF1oKa_FyJHRs5xeSavzT8QQA/exec" 
     try:
         requests.post(WEBHOOK_URL, json=dados, timeout=5)
     except:
