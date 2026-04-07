@@ -37,7 +37,6 @@ def gerar_conteudo_ia(prompt):
 
 # --- FUNÇÕES DE APOIO ---
 def notificar_venda_planilha(dados):
-    # Link atualizado conforme sua última implantação
     WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwNf3VrNaXJ7Tn2sohVG0XxGk_Ia94UIKP7Aq1FeXRHIWF1oKa_FyJHRs5xeSavzT8QQA/exec" 
     try:
         requests.post(WEBHOOK_URL, json=dados, timeout=5)
@@ -73,7 +72,8 @@ def gerar_pdf(texto, template_name, nome_cliente):
     return pdf.output(dest='S').encode('latin-1')
 
 # --- INTERFACE ---
-st.set_page_config(page_title="Engenharia de Carreira IA", layout="wide")
+# 1. Ajuste: Título da Aba (Navegador)
+st.set_page_config(page_title="Currículo de Alta Performance", layout="wide")
 
 # Inicialização de variáveis de estado
 if "diagnostico" not in st.session_state: st.session_state.diagnostico = False
@@ -81,7 +81,8 @@ if "sucesso" not in st.session_state: st.session_state.sucesso = False
 if "pdf_bytes" not in st.session_state: st.session_state.pdf_bytes = None
 if "texto_gerado" not in st.session_state: st.session_state.texto_gerado = ""
 
-st.title("🚀 Inteligência de Aprovação: O Currículo Irrecusável")
+# 2. Ajuste: Título Principal (Header)
+st.title("🚀 Currículo de Alta Performance: Engenharia de Carreira")
 st.caption("Sistema Híbrido Gemini + Groq Ativado.")
 
 col1, col2 = st.columns(2)
@@ -125,10 +126,8 @@ if st.session_state.diagnostico:
 
         if pagar:
             valor_venda = float(preco_str.replace(',', '.'))
-            # Cálculo da comissão (30%)
             valor_comissao = valor_venda * 0.30 if parceiros_rh[consultor] != "ORG000" else 0.0
             
-            # Notificação enviando o campo 'comissao' para a planilha
             notificar_venda_planilha({
                 "cliente": nome_user, 
                 "plano": plano, 
@@ -158,12 +157,13 @@ if st.session_state.sucesso:
     with c_pay:
         st.markdown(f'''<a href="https://www.mercadopago.com.br" target="_blank"><button style="background-color: #009EE3; color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; width: 100%;">1. FINALIZAR PAGAMENTO (R$ {preco_str})</button></a>''', unsafe_allow_html=True)
     with c_down:
+        # 3. Ajuste: Nome do Arquivo de Download
         st.download_button(
             label="2. BAIXAR CURRÍCULO (PDF)",
             data=st.session_state.pdf_bytes,
-            file_name=f"Curriculo_{nome_user.replace(' ', '_')}.pdf",
+            file_name=f"Curriculo_Alta_Performance_{nome_user.replace(' ', '_')}.pdf",
             mime="application/pdf",
-            key="btn_download_final_ajustado"
+            key="btn_download_v3"
         )
     
     st.subheader("📝 Prévia")
