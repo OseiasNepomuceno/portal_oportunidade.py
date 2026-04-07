@@ -25,16 +25,19 @@ with col2:
                                    ["Liderança", "Ferramentas Técnicas", "Gestão de Projetos", "Atendimento", "Vendas", "Operação Logística", "Análise de Dados"])
     cv_atual = st.text_area("Cole seu Currículo Atual ou resumo de experiências:", height=150)
 
-# Definição Interna de Plano (Sem revelar os nomes técnicos dos métodos)
+# Definição Interna de Plano e Métodos (Back-end)
 if salario >= 10000:
     plano, preco = "EXECUTIVE", "R$ 197,00"
     nomenclatura_metodo = "Protocolo de Liderança e ROI Executivo"
+    framework_interno = "ELITE"
 elif 5000 <= salario < 10000:
     plano, preco = "PRO", "R$ 97,00"
     nomenclatura_metodo = "Método de Alta Performance e Resultados Técnicos"
+    framework_interno = "WHO/CAR"
 else:
     plano, preco = "START", "R$ 47,00"
     nomenclatura_metodo = "Engenharia de Competências e Impacto Imediato"
+    framework_interno = "STAR"
 
 # Botão para disparar o diagnóstico
 if st.button("⚡ GERAR DIAGNÓSTICO DE IMPACTO"):
@@ -73,7 +76,6 @@ if st.session_state.mostrar_diagnostico:
             desafio_superado = st.text_area("Descreva um problema complexo que você resolveu com sucesso:", 
                                             placeholder="Como você agiu para evitar um prejuízo ou erro?")
 
-        # Seção Executiva condicional (Mantendo o segredo do método)
         if salario >= 8000:
             st.markdown("**🎖️ Indicadores de Gestão e Impacto Financeiro**")
             lideranca = st.text_input("Qual o tamanho da equipe ou volume financeiro que você gerenciava?")
@@ -84,4 +86,42 @@ if st.session_state.mostrar_diagnostico:
         botao_pagar = st.form_submit_button(f"PAGAR {preco} E CONQUISTAR MINHA VAGA")
 
         if botao_pagar:
-            st.success(f"💳 Pagamento Identificado! Aplicando {nomenclatura_metodo}... Aguarde a geração do seu documento de alto impacto.")
+            # --- CAMADA 3: O GERADOR FINAL (IMPLEMENTAÇÃO) ---
+            st.success(f"💳 Pagamento Identificado! Aplicando {nomenclatura_metodo}...")
+            
+            # Construção do Prompt Agressivo para a IA
+            prompt_final = f"""
+            ATUE COMO UM HEADHUNTER SÊNIOR E ESTRATEGISTA DE CARREIRA.
+            OBJETIVO: Gerar Currículo e Carta de Apresentação Agressiva para vaga de R$ {salario}.
+            MÉTODO INTERNO: {framework_interno}
+            
+            DADOS DA VAGA: {vaga_link}
+            PERFIL ATUAL: {cv_atual}
+            PROVAS DE IMPACTO: 
+            - Resultado: {resultado_impacto}
+            - Ferramentas: {ferramentas}
+            - Desafio: {desafio_superado}
+            
+            ESTRUTURA DE SAÍDA:
+            1. Headline Profissional de Alto Impacto.
+            2. Experiências reescritas focando em ROI e RESULTADOS NUMÉRICOS.
+            3. Carta de Apresentação 'Ataque': Identifique a dor da vaga e mostre que o candidato é a única solução.
+            """
+            
+            st.markdown("---")
+            st.subheader("📄 Seus Documentos de Alta Performance")
+            
+            # Tabs para organizar a entrega final
+            tab_cv, tab_carta = st.tabs(["📄 Currículo Otimizado", "✉️ Carta de Apresentação"])
+            
+            with tab_cv:
+                st.info(f"Este documento foi estruturado com o {nomenclatura_metodo}.")
+                st.code(f"GERANDO CONTEÚDO PARA: {graduacao}...\n(Aqui a IA retornaria o texto formatado baseado no {framework_interno})", language="text")
+                st.button("📥 Baixar Currículo em PDF (Simulação)")
+
+            with tab_carta:
+                st.warning("Esta carta foi desenhada para 'atacar' os requisitos da vaga.")
+                st.code("GERANDO CARTA DE APRESENTAÇÃO ESTRATÉGICA...", language="text")
+                st.button("📥 Baixar Carta em PDF (Simulação)")
+            
+            st.balloons()
