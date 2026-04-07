@@ -15,7 +15,7 @@ except Exception as e:
 # --- FUNÇÃO PARA NOTIFICAR PLANILHA (WEBHOOK) ---
 def notificar_venda_planilha(dados):
     # Substitua pela URL do seu Webhook (Google Apps Script, Make ou Zapier)
-    WEBHOOK_URL = "SUA_URL_DO_WEBHOOK_AQUI" 
+    WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyHJggBgmsF8DI6F7SjV9gM0uQ6XZpq6JBAVkWqR_Lc-KmBVzXYZqk9rFxYAtP6Y6V0ow/exec" 
     try:
         requests.post(WEBHOOK_URL, json=dados, timeout=5)
     except:
