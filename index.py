@@ -2,24 +2,26 @@ import streamlit as st
 import google.generativeai as genai
 from fpdf import FPDF
 import base64
-import requests  # Necessário para a notificação da planilha
+import requests
 
 # --- CONFIGURAÇÃO DA API (Secrets) ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # CORREÇÃO: Alterado de 'gemini-1.5-flash' para 'gemini-pro' para maior estabilidade
-    model = genai.GenerativeModel('gemini-pro')
+    # Usando o modelo flash para maior velocidade e estabilidade
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error(f"Erro na API: Verifique a GEMINI_API_KEY nos Secrets. Detalhes: {e}")
 
+# --- CONFIGURAÇÃO DE NEGÓCIO ---
+PERCENTUAL_COMISSAO = 0.30  # 30% de comissão para o parceiro
+
 # --- FUNÇÃO PARA NOTIFICAR PLANILHA (WEBHOOK) ---
 def notificar_venda_planilha(dados):
-    # Substitua pela URL do seu Webhook (Google Apps Script, Make ou Zapier)
     WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyHJggBgmsF8DI6F7SjV9gM0uQ6XZpq6JBAVkWqR_Lc-KmBVzXYZqk9rFxYAtP6Y6V0ow/exec" 
     try:
         requests.post(WEBHOOK_URL, json=dados, timeout=5)
     except:
-        pass # Falha silenciosa para não interromper a experiência do usuário
+        pass 
 
 # --- FUNÇÃO PARA GERAR PDF ---
 def gerar_pdf(texto, template_name, nome_cliente):
@@ -28,12 +30,11 @@ def gerar_pdf(texto, template_name, nome_cliente):
     
     if template_name == "Executive":
         pdf.set_font("Times", 'B', 16)
-        pdf.set_text_color(0, 0, 0)
         pdf.cell(200, 10, txt=f"CURRÍCULO: {nome_cliente.upper()}", ln=True, align='C')
         pdf.ln(5)
         pdf.set_font("Times", size=11)
     elif template_name == "Tech/Modern":
-        pdf.set_fill_color(30, 41, 59) # Azul Escuro
+        pdf.set_fill_color(30, 41, 59)
         pdf.rect(0, 0, 210, 40, 'F')
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Arial", 'B', 18)
@@ -41,14 +42,12 @@ def gerar_pdf(texto, template_name, nome_cliente):
         pdf.ln(10)
         pdf.set_text_color(0, 0, 0)
         pdf.set_font("Arial", size=10)
-    else: # Minimalist
+    else: 
         pdf.set_font("Courier", size=10)
         pdf.cell(200, 10, txt=nome_cliente.upper(), ln=True, align='L')
         pdf.ln(2)
 
-    # Inserir o conteúdo da IA - Tratamento de caracteres latin-1 para FPDF
     pdf.multi_cell(0, 7, txt=texto.encode('latin-1', 'replace').decode('latin-1'))
-    
     return pdf.output(dest='S').encode('latin-1')
 
 # --- INTERFACE STREAMLIT ---
@@ -75,26 +74,21 @@ with col2:
 
 # Lógica de Venda
 if salario >= 10000:
-    plano, preco, metodo = "EXECUTIVE", "197,00", "Protocolo de ROI Executivo"
-    framework = "ELITE"
+    plano, preco_str, metodo, framework = "EXECUTIVE", "197,00", "Protocolo de ROI Executivo", "ELITE"
 elif 5000 <= salario < 10000:
-    plano, preco, metodo = "PRO", "97,00", "Método de Alta Performance"
-    framework = "WHO/CAR"
+    plano, preco_str, metodo, framework = "PRO", "97,00", "Método de Alta Performance", "WHO/CAR"
 else:
-    plano, preco, metodo = "START", "47,00", "Engenharia de Impacto Imediato"
-    framework = "STAR"
+    plano, preco_str, metodo, framework = "START", "47,00", "Engenharia de Impacto Imediato", "STAR"
 
 if st.button("⚡ GERAR DIAGNÓSTICO DE IMPACTO"):
     st.session_state.diagnostico = True
 
 if st.session_state.diagnostico:
     st.markdown("---")
-    
     col_diag, col_parceiro = st.columns([2, 1])
     
     with col_diag:
         st.error(f"⚠️ **URGÊNCIA:** Vagas de R$ {salario} exigem um **{metodo}**.")
-        st.info("O índice de aderência do seu currículo atual é baixo para os padrões de recrutamento automatizado.")
 
     with col_parceiro:
         st.subheader("👨‍💼 Validação Profissional")
@@ -105,7 +99,6 @@ if st.session_state.diagnostico:
             "Camila Oliveira - Consultora de RH": "RH003"
         }
         consultor = st.selectbox("Quem recomendou nossa Engenharia para você?", list(parceiros_rh.keys()))
-        
         if consultor != "Indicação Direta (Portal)":
             st.success(f"Especialista {consultor.split(' - ')[0]} selecionado(a).")
 
@@ -116,47 +109,43 @@ if st.session_state.diagnostico:
             resultado = st.text_area("Seu maior resultado real (Números/Metas):")
         with c2:
             ferramentas = st.text_input("Ferramentas que domina:")
-            desafio = st.text_area("Um problema difícil que resolveu:")
+            desafio = st.text_area("Um problem difícil que resolveu:")
         
         template_choice = st.radio("Escolha o Estilo do seu PDF:", ["Tech/Modern", "Executive", "Minimalist"])
-        
-        st.info(f"💰 Investimento para Aprovação: R$ {preco}")
+        st.info(f"💰 Investimento para Aprovação: R$ {preco_str}")
         pagar = st.form_submit_button(f"LIBERAR CURRÍCULO {plano}")
 
         if pagar:
-            # Notificar Planilha antes da geração
+            # Cálculos Financeiros para a Planilha
+            valor_venda = float(preco_str.replace(',', '.'))
+            valor_comissao = valor_venda * PERCENTUAL_COMISSAO if parceiros_rh[consultor] != "ORG000" else 0.0
+
+            # Notificar Planilha
             notificar_venda_planilha({
                 "cliente": nome_user,
                 "plano": plano,
-                "valor": preco,
+                "valor": valor_venda,
+                "comissao": valor_comissao,
                 "consultor": consultor,
                 "id_rh": parceiros_rh[consultor]
             })
 
             with st.spinner("IA processando sua Engenharia de Carreira..."):
-                prompt = f"""
-                ATUE COMO UM HEADHUNTER SÊNIOR. 
-                Gere um Currículo e uma Carta de Apresentação Agressiva.
-                ESTILO: {framework}. VAGA: {vaga_desc}. SALÁRIO: R$ {salario}.
-                CANDIDATO: {nome_user}, {graduacao}. CV ATUAL: {cv_atual}.
-                RESULTADO: {resultado} com {ferramentas}. DESAFIO: {desafio}.
-                SAÍDA: Texto profissional, sem introduções desnecessárias. Use títulos 'CURRICULO' e 'CARTA'.
-                """
+                prompt = f"Aja como Headhunter. Gere CV e Carta {framework} para vaga {vaga_desc}. Candidato {nome_user}, {graduacao}. Resultados: {resultado}. Desafio: {desafio}."
                 try:
                     response = model.generate_content(prompt)
                     texto_ia = response.text
                     
-                    st.success("Documentos Estruturados! Realize o pagamento para validar o download oficial.")
+                    st.success("Documentos Estruturados!")
                     
-                    # Botão Visual Mercado Pago (Substituir link_mp pelo seu link real)
-                    link_mp = "https://www.mercadopago.com.br" 
-                    st.markdown(f'''<a href="{link_mp}" target="_blank"><button style="background-color: #009EE3; color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">PAGAR AGORA (R$ {preco})</button></a>''', unsafe_allow_html=True)
+                    link_mp = "https://www.mercadopago.com.br" # Substitua pelo link real
+                    st.markdown(f'''<a href="{link_mp}" target="_blank"><button style="background-color: #009EE3; color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">PAGAR AGORA (R$ {preco_str})</button></a>''', unsafe_allow_html=True)
                     
                     pdf_bytes = gerar_pdf(texto_ia, template_choice, nome_user)
-                    st.download_button(label=f"📥 Baixar Currículo {template_choice} (PDF)", data=pdf_bytes, file_name=f"Curriculo_{nome_user.replace(' ', '_')}.pdf", mime="application/pdf")
+                    st.download_button(label="📥 Baixar Currículo (PDF)", data=pdf_bytes, file_name=f"Curriculo_{nome_user.replace(' ', '_')}.pdf", mime="application/pdf")
                     
                     st.markdown("### 📝 Prévia do Texto Gerado")
                     st.text(texto_ia)
                     st.balloons()
                 except Exception as e:
-                    st.error(f"Erro na geração da IA: {e}")
+                    st.error(f"Erro: {e}")
