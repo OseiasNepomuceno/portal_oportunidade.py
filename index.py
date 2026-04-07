@@ -37,6 +37,7 @@ def gerar_conteudo_ia(prompt):
 
 # --- FUNÇÕES DE APOIO ---
 def notificar_venda_planilha(dados):
+    # Link atualizado conforme sua última implantação
     WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwNf3VrNaXJ7Tn2sohVG0XxGk_Ia94UIKP7Aq1FeXRHIWF1oKa_FyJHRs5xeSavzT8QQA/exec" 
     try:
         requests.post(WEBHOOK_URL, json=dados, timeout=5)
@@ -124,11 +125,17 @@ if st.session_state.diagnostico:
 
         if pagar:
             valor_venda = float(preco_str.replace(',', '.'))
+            # Cálculo da comissão (30%)
             valor_comissao = valor_venda * 0.30 if parceiros_rh[consultor] != "ORG000" else 0.0
             
+            # Notificação enviando o campo 'comissao' para a planilha
             notificar_venda_planilha({
-                "cliente": nome_user, "plano": plano, "valor": valor_venda,
-                "comissao": valor_comissao, "consultor": consultor, "id_rh": parceiros_rh[consultor]
+                "cliente": nome_user, 
+                "plano": plano, 
+                "valor": valor_venda,
+                "comissao": valor_comissao, 
+                "consultor": consultor, 
+                "id_rh": parceiros_rh[consultor]
             })
 
             with st.spinner("Processando Inteligência Híbrida..."):
@@ -149,14 +156,14 @@ if st.session_state.sucesso:
     
     c_pay, c_down = st.columns(2)
     with c_pay:
-        st.markdown(f'''<a href="https://www.mercadopago.com.br" target="_blank"><button style="background-color: #009EE3; color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">1. FINALIZAR PAGAMENTO (R$ {preco_str})</button></a>''', unsafe_allow_html=True)
+        st.markdown(f'''<a href="https://www.mercadopago.com.br" target="_blank"><button style="background-color: #009EE3; color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold; width: 100%;">1. FINALIZAR PAGAMENTO (R$ {preco_str})</button></a>''', unsafe_allow_html=True)
     with c_down:
         st.download_button(
             label="2. BAIXAR CURRÍCULO (PDF)",
             data=st.session_state.pdf_bytes,
             file_name=f"Curriculo_{nome_user.replace(' ', '_')}.pdf",
             mime="application/pdf",
-            key="btn_download_final"
+            key="btn_download_final_ajustado"
         )
     
     st.subheader("📝 Prévia")
