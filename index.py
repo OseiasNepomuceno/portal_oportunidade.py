@@ -1,9 +1,9 @@
 import streamlit as st
 import google.generativeai as genai
-from groq import Groq # Importação da Groq
+from groq import Groq
 from fpdf import FPDF
-import base64
 import requests
+import io
 
 # --- CONFIGURAÇÃO DAS APIs ---
 try:
@@ -25,14 +25,13 @@ except Exception as e:
 # --- LÓGICA DE INTELIGÊNCIA HÍBRIDA (GEMINI + GROQ) ---
 def gerar_conteudo_ia(prompt):
     """Tenta Gemini primeiro. Se falhar, usa Groq instantaneamente."""
-    
     # Tentativa 1: Google Gemini (Flash)
     try:
         model_gemini = genai.GenerativeModel(model_name='gemini-1.5-flash')
         response = model_gemini.generate_content(prompt, safety_settings=safety_settings)
         return response.text, "Motor Gemini"
-    except Exception as e:
-        # Tentativa 2: Groq (Llama 3.3) - O "Tanque de Guerra"
+    except Exception:
+        # Tentativa 2: Groq (Llama 3.3)
         try:
             chat_completion = client_groq.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
@@ -53,25 +52,32 @@ def notificar_venda_planilha(dados):
 def gerar_pdf(texto, template_name, nome_cliente):
     pdf = FPDF()
     pdf.add_page()
+    
+    # Fontes padrão (mais seguras para evitar erros de encoding)
     if template_name == "Executive":
-        pdf.set_font("Times", 'B', 16)
-        pdf.cell(200, 10, txt=f"CURRÍCULO: {nome_cliente.upper()}", ln=True, align='C')
+        pdf.set_font("Helvetica", 'B', 16)
+        pdf.cell(200, 10, txt=f"CURRICULO: {nome_cliente.upper()}", ln=True, align='C')
         pdf.ln(5)
-        pdf.set_font("Times", size=11)
+        pdf.set_font("Helvetica", size=11)
     elif template_name == "Tech/Modern":
         pdf.set_fill_color(30, 41, 59)
         pdf.rect(0, 0, 210, 40, 'F')
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Arial", 'B', 18)
+        pdf.set_font("Helvetica", 'B', 18)
         pdf.cell(200, 25, txt=nome_cliente.upper(), ln=True, align='C')
         pdf.ln(10)
         pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", size=10)
+        pdf.set_font("Helvetica", size=10)
     else: 
         pdf.set_font("Courier", size=10)
         pdf.cell(200, 10, txt=nome_cliente.upper(), ln=True, align='L')
         pdf.ln(2)
-    pdf.multi_cell(0, 7, txt=texto.encode('latin-1', 'replace').decode('latin-1'))
+
+    # Limpeza de caracteres para evitar erro de Latin-1
+    texto_limpo = texto.encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 7, txt=texto_limpo)
+    
+    # Retorno binário puro
     return pdf.output(dest='S').encode('latin-1')
 
 # --- INTERFACE ---
@@ -141,7 +147,7 @@ if st.session_state.diagnostico:
                 texto_ia, motor_usado = gerar_conteudo_ia(prompt)
                 
                 if "ERRO_TOTAL" in texto_ia:
-                    st.error("Desculpe, ambos os motores de IA estão instáveis. Tente em 5 minutos.")
+                    st.error("Desculpe, a IA está instável. Tente novamente.")
                 else:
                     st.info(f"Processado via: {motor_usado}")
                     st.success("Documentos Gerados com Sucesso!")
@@ -149,8 +155,18 @@ if st.session_state.diagnostico:
                     link_mp = "https://www.mercadopago.com.br"
                     st.markdown(f'''<a href="{link_mp}" target="_blank"><button style="background-color: #009EE3; color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">PAGAR AGORA (R$ {preco_str})</button></a>''', unsafe_allow_html=True)
                     
+                    # Gerar bytes do PDF
                     pdf_bytes = gerar_pdf(texto_ia, template_choice, nome_user)
-                    st.download_button(label="📥 Baixar Currículo (PDF)", data=pdf_bytes, file_name=f"Curriculo_{nome_user.replace(' ', '_')}.pdf", mime="application/pdf")
+                    
+                    # Botão de download corrigido
+                    st.download_button(
+                        label="📥 Baixar Currículo (PDF)",
+                        data=pdf_bytes,
+                        file_name=f"Curriculo_{nome_user.replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        key="btn_download_final"
+                    )
+                    
                     st.markdown("---")
                     st.text(texto_ia)
                     st.balloons()
