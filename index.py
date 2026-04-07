@@ -1,13 +1,18 @@
 import streamlit as st
 import google.generativeai as genai
+from groq import Groq # Importação da Groq
 from fpdf import FPDF
 import base64
 import requests
 
-# --- 1. CONFIGURAÇÃO DA API COM SEGURANÇA ---
+# --- CONFIGURAÇÃO DAS APIs ---
 try:
+    # Google Gemini
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Configuração de segurança para evitar bloqueios falso-positivos
+    
+    # Groq (Acelerador de Emergência)
+    client_groq = Groq(api_key=st.secrets["GROQ_API_KEY"])
+    
     safety_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -15,34 +20,29 @@ try:
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
     ]
 except Exception as e:
-    st.error(f"Erro na configuração inicial: {e}")
+    st.error(f"Erro nas Chaves de API: {e}")
 
-# --- 2. LÓGICA DE FALLBACK (MODELO RESERVA) ---
+# --- LÓGICA DE INTELIGÊNCIA HÍBRIDA (GEMINI + GROQ) ---
 def gerar_conteudo_ia(prompt):
-    """Tenta gerar conteúdo usando uma lista de modelos por ordem de estabilidade."""
-    modelos_disponiveis = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+    """Tenta Gemini primeiro. Se falhar, usa Groq instantaneamente."""
     
-    ultimo_erro = ""
-    for nome_modelo in modelos_disponiveis:
+    # Tentativa 1: Google Gemini (Flash)
+    try:
+        model_gemini = genai.GenerativeModel(model_name='gemini-1.5-flash')
+        response = model_gemini.generate_content(prompt, safety_settings=safety_settings)
+        return response.text, "Motor Gemini"
+    except Exception as e:
+        # Tentativa 2: Groq (Llama 3.3) - O "Tanque de Guerra"
         try:
-            model_teste = genai.GenerativeModel(model_name=nome_modelo)
-            response = model_teste.generate_content(prompt, safety_settings=safety_settings)
-            return response.text
-        except Exception as e:
-            ultimo_erro = str(e)
-            continue # Tenta o próximo modelo da lista se o atual der 404 ou erro
-    
-    # --- 3. TRATAMENTO DE ERROS POR TIPO ---
-    if "404" in ultimo_erro:
-        return f"ERRO_TECNICO: O Google removeu o acesso temporário aos modelos. Detalhes: {ultimo_erro}"
-    elif "429" in ultimo_erro:
-        return "ERRO_COTA: Limite de uso atingido. Tente novamente em 1 minuto."
-    else:
-        return f"ERRO_DESCONHECIDO: {ultimo_erro}"
+            chat_completion = client_groq.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="llama-3.3-70b-versatile",
+            )
+            return chat_completion.choices[0].message.content, "Motor Groq (Alta Velocidade)"
+        except Exception as e_groq:
+            return f"ERRO_TOTAL: Ambos os motores falharam. {e_groq}", "Falha"
 
-# --- CONFIGURAÇÃO DE NEGÓCIO ---
-PERCENTUAL_COMISSAO = 0.30 
-
+# --- FUNÇÕES DE APOIO ---
 def notificar_venda_planilha(dados):
     WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyHJggBgmsF8DI6F7SjV9gM0uQ6XZpq6JBAVkWqR_Lc-KmBVzXYZqk9rFxYAtP6Y6V0ow/exec" 
     try:
@@ -80,7 +80,7 @@ if "diagnostico" not in st.session_state:
     st.session_state.diagnostico = False
 
 st.title("🚀 Inteligência de Aprovação: O Currículo Irrecusável")
-st.caption("Transforme seu perfil comum em uma solução de alto impacto para o mercado.")
+st.caption("Sistema Híbrido Gemini + Groq Ativado.")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -127,6 +127,7 @@ if st.session_state.diagnostico:
 
         if pagar:
             valor_venda = float(preco_str.replace(',', '.'))
+            PERCENTUAL_COMISSAO = 0.30
             valor_comissao = valor_venda * PERCENTUAL_COMISSAO if parceiros_rh[consultor] != "ORG000" else 0.0
             
             notificar_venda_planilha({
@@ -134,19 +135,22 @@ if st.session_state.diagnostico:
                 "comissao": valor_comissao, "consultor": consultor, "id_rh": parceiros_rh[consultor]
             })
 
-            with st.spinner("IA processando com múltiplos motores de segurança..."):
-                prompt = f"Aja como Headhunter. Gere CV e Carta {framework} para vaga {vaga_desc}. Candidato {nome_user}, {graduacao}. Resultados: {resultado}. Desafio: {desafio}."
+            with st.spinner("Processando com Inteligência Híbrida..."):
+                prompt = f"Aja como Headhunter Sênior. Gere um currículo focado em resultados e uma carta de apresentação para a vaga: {vaga_desc}. Candidato: {nome_user}, {graduacao}. Experiência: {cv_atual}. Resultado Chave: {resultado}. Use o framework {framework}."
                 
-                texto_ia = gerar_conteudo_ia(prompt)
+                texto_ia, motor_usado = gerar_conteudo_ia(prompt)
                 
-                if "ERRO_TECNICO" in texto_ia:
-                    st.warning("⚠️ O motor principal está em manutenção. Tente novamente em instantes.")
+                if "ERRO_TOTAL" in texto_ia:
+                    st.error("Desculpe, ambos os motores de IA estão instáveis. Tente em 5 minutos.")
                 else:
-                    st.success("Documentos Estruturados!")
+                    st.info(f"Processado via: {motor_usado}")
+                    st.success("Documentos Gerados com Sucesso!")
+                    
                     link_mp = "https://www.mercadopago.com.br"
                     st.markdown(f'''<a href="{link_mp}" target="_blank"><button style="background-color: #009EE3; color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">PAGAR AGORA (R$ {preco_str})</button></a>''', unsafe_allow_html=True)
                     
                     pdf_bytes = gerar_pdf(texto_ia, template_choice, nome_user)
                     st.download_button(label="📥 Baixar Currículo (PDF)", data=pdf_bytes, file_name=f"Curriculo_{nome_user.replace(' ', '_')}.pdf", mime="application/pdf")
+                    st.markdown("---")
                     st.text(texto_ia)
                     st.balloons()
