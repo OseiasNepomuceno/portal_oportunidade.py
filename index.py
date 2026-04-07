@@ -83,7 +83,6 @@ if "texto_gerado" not in st.session_state: st.session_state.texto_gerado = ""
 
 # 2. Ajuste: Título Principal (Header)
 st.title("🚀 Currículo de Alta Performance: Engenharia de Carreira")
-st.caption("Sistema Híbrido Gemini + Groq Ativado.")
 
 col1, col2 = st.columns(2)
 with col1:
