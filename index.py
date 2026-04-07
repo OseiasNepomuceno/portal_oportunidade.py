@@ -2,13 +2,24 @@ import streamlit as st
 import google.generativeai as genai
 from fpdf import FPDF
 import base64
+import requests  # Necessário para a notificação da planilha
 
 # --- CONFIGURAÇÃO DA API (Secrets) ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # CORREÇÃO: Alterado de 'gemini-1.5-flash' para 'gemini-pro' para maior estabilidade
+    model = genai.GenerativeModel('gemini-pro')
 except Exception as e:
-    st.error("Erro na API: Verifique a GEMINI_API_KEY nos Secrets.")
+    st.error(f"Erro na API: Verifique a GEMINI_API_KEY nos Secrets. Detalhes: {e}")
+
+# --- FUNÇÃO PARA NOTIFICAR PLANILHA (WEBHOOK) ---
+def notificar_venda_planilha(dados):
+    # Substitua pela URL do seu Webhook (Google Apps Script, Make ou Zapier)
+    WEBHOOK_URL = "SUA_URL_DO_WEBHOOK_AQUI" 
+    try:
+        requests.post(WEBHOOK_URL, json=dados, timeout=5)
+    except:
+        pass # Falha silenciosa para não interromper a experiência do usuário
 
 # --- FUNÇÃO PARA GERAR PDF ---
 def gerar_pdf(texto, template_name, nome_cliente):
@@ -62,7 +73,7 @@ with col2:
     graduacao = st.selectbox("Sua Graduação:", ["Ensino Médio", "Técnico", "Graduação", "Pós/MBA", "Mestrado/Doc"])
     cv_atual = st.text_area("Cole seu Currículo Atual ou resumo de experiências:", height=150)
 
-# Lógica de Venda e Metodologia Blindada
+# Lógica de Venda
 if salario >= 10000:
     plano, preco, metodo = "EXECUTIVE", "197,00", "Protocolo de ROI Executivo"
     framework = "ELITE"
@@ -79,48 +90,50 @@ if st.button("⚡ GERAR DIAGNÓSTICO DE IMPACTO"):
 if st.session_state.diagnostico:
     st.markdown("---")
     
-    # --- BLOCO DE DIAGNÓSTICO E SELEÇÃO DE PARCEIRO ---
     col_diag, col_parceiro = st.columns([2, 1])
     
     with col_diag:
-        st.error(f"⚠️ **URGÊNCIA:** Vagas de R$ {salario} exigem um **{metodo}**. Seu modelo atual corre risco de descarte.")
+        st.error(f"⚠️ **URGÊNCIA:** Vagas de R$ {salario} exigem um **{metodo}**.")
         st.info("O índice de aderência do seu currículo atual é baixo para os padrões de recrutamento automatizado.")
 
     with col_parceiro:
         st.subheader("👨‍💼 Validação Profissional")
-        # Dicionário de Parceiros (Nome: ID_Comissão)
         parceiros_rh = {
             "Indicação Direta (Portal)": "ORG000",
             "Ana Silva - Tech Recruiter": "RH001",
-            "Ricardo Souza - Headhunter Executivo": "RH002",
+            "Ricardo Souza - Headhunter": "RH002",
             "Camila Oliveira - Consultora de RH": "RH003"
         }
         consultor = st.selectbox("Quem recomendou nossa Engenharia para você?", list(parceiros_rh.keys()))
         
         if consultor != "Indicação Direta (Portal)":
-            st.success(f"Especialista {consultor.split(' - ')[0]} selecionado(a) para suporte.")
+            st.success(f"Especialista {consultor.split(' - ')[0]} selecionado(a).")
 
-    # --- FORMULÁRIO DE PROVAS DE COMPETÊNCIA ---
     with st.form("provas_competencia"):
         st.subheader("🛠️ Provas de Competência")
         c1, c2 = st.columns(2)
         with c1:
-            resultado = st.text_area("Seu maior resultado real (Números/Metas):", placeholder="Ex: Aumentei o faturamento em 12%...")
+            resultado = st.text_area("Seu maior resultado real (Números/Metas):")
         with c2:
-            ferramentas = st.text_input("Ferramentas que domina:", placeholder="Ex: SAP, Python, Excel...")
-            desafio = st.text_area("Um problema difícil que resolveu:", placeholder="Descreva como evitou um prejuízo ou falha.")
+            ferramentas = st.text_input("Ferramentas que domina:")
+            desafio = st.text_area("Um problema difícil que resolveu:")
         
-        st.markdown("---")
-        template_choice = st.radio("Escolha o Estilo Visual do seu PDF Profissional:", ["Tech/Modern", "Executive", "Minimalist"])
+        template_choice = st.radio("Escolha o Estilo do seu PDF:", ["Tech/Modern", "Executive", "Minimalist"])
         
         st.info(f"💰 Investimento para Aprovação: R$ {preco}")
-        pagar = st.form_submit_button(f"PAGAR E LIBERAR CURRÍCULO {plano}")
+        pagar = st.form_submit_button(f"LIBERAR CURRÍCULO {plano}")
 
         if pagar:
-            with st.spinner("IA processando sua Engenharia de Carreira com supervisão técnica..."):
-                # O ID do consultor pode ser salvo em log ou banco de dados aqui para pagamento de comissão
-                id_comissao = parceiros_rh[consultor]
-                
+            # Notificar Planilha antes da geração
+            notificar_venda_planilha({
+                "cliente": nome_user,
+                "plano": plano,
+                "valor": preco,
+                "consultor": consultor,
+                "id_rh": parceiros_rh[consultor]
+            })
+
+            with st.spinner("IA processando sua Engenharia de Carreira..."):
                 prompt = f"""
                 ATUE COMO UM HEADHUNTER SÊNIOR. 
                 Gere um Currículo e uma Carta de Apresentação Agressiva.
@@ -133,21 +146,17 @@ if st.session_state.diagnostico:
                     response = model.generate_content(prompt)
                     texto_ia = response.text
                     
-                    st.success(f"Documentos validados estrategicamente por nossa IA e pela rede de parceiros!")
+                    st.success("Documentos Estruturados! Realize o pagamento para validar o download oficial.")
                     
-                    # Gerar PDF
+                    # Botão Visual Mercado Pago (Substituir link_mp pelo seu link real)
+                    link_mp = "https://www.mercadopago.com.br" 
+                    st.markdown(f'''<a href="{link_mp}" target="_blank"><button style="background-color: #009EE3; color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-weight: bold;">PAGAR AGORA (R$ {preco})</button></a>''', unsafe_allow_html=True)
+                    
                     pdf_bytes = gerar_pdf(texto_ia, template_choice, nome_user)
-                    
-                    st.download_button(
-                        label=f"📥 Baixar Currículo {template_choice} (PDF)",
-                        data=pdf_bytes,
-                        file_name=f"Curriculo_{nome_user.replace(' ', '_')}.pdf",
-                        mime="application/pdf"
-                    )
+                    st.download_button(label=f"📥 Baixar Currículo {template_choice} (PDF)", data=pdf_bytes, file_name=f"Curriculo_{nome_user.replace(' ', '_')}.pdf", mime="application/pdf")
                     
                     st.markdown("### 📝 Prévia do Texto Gerado")
                     st.text(texto_ia)
                     st.balloons()
-                    
                 except Exception as e:
-                    st.error(f"Erro ao gerar: {e}")
+                    st.error(f"Erro na geração da IA: {e}")
