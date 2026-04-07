@@ -100,7 +100,7 @@ if st.session_state.diagnostico:
         st.subheader("👨‍💼 Validação Profissional")
         parceiros_rh = {
             "Indicação Direta (Portal)": "ORG000",
-            "Ana Silva - Tech Recruiter": "RH001",
+            "Oseias Nepomuceno - Especialista em Gestão de Pessoas": "RH001",
             "Ricardo Souza - Headhunter": "RH002",
             "Camila Oliveira - Consultora de RH": "RH003"
         }
